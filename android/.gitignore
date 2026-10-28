@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# CI용 고정 디버그 서명 키 (비밀 아님, 앱 업데이트 서명 일관성용)
+!ci-debug.keystore

@@ -1,0 +1,125 @@
+# 코드를 올리면 자동으로:
+#  1) 검사·테스트
+#  2) Windows(.zip), Android(.apk), 웹 빌드
+#  3) 기본 브랜치면 "latest" 릴리스에 설치 파일 업데이트
+#  4) Cloudflare 시크릿이 있으면 웹 버전 배포
+name: build
+
+on:
+  push:
+    paths-ignore: ['**.md', 'supabase/**']
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.8'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      # 매번 같은 키로 서명해야 폰에서 덮어쓰기 업데이트가 된다.
+      - run: mkdir -p ~/.android && cp android/ci-debug.keystore ~/.android/debug.keystore
+      - run: flutter build apk --release --build-number=${{ github.run_number }}
+      - run: mv build/app/outputs/flutter-apk/app-release.apk GamePlanner.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: GamePlanner.apk
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter build windows --release --build-number=${{ github.run_number }}
+      - name: zip
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath GamePlanner-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: GamePlanner-windows.zip
+
+  web:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter build web --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: build/web
+      - name: Cloudflare Pages 배포
+        if: env.CLOUDFLARE_API_TOKEN != '' && github.ref_name == github.event.repository.default_branch
+        run: |
+          npx --yes wrangler@3 pages project create game-planner --production-branch=main || true
+          npx --yes wrangler@3 pages deploy build/web --project-name=game-planner --branch=main --commit-dirty=true
+
+  release:
+    needs: [android, windows]
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: latest 태그를 이번 커밋으로 이동
+        run: |
+          git tag -f latest
+          git push -f origin latest
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: 최신 빌드
+          prerelease: false
+          make_latest: true
+          body: |
+            커밋 ${{ github.sha }} 기준 자동 빌드 (#${{ github.run_number }})
+
+            - **PC (Windows)**: `GamePlanner-windows.zip` 받아서 압축 풀고 `game_planner.exe` 실행
+            - **Android**: `GamePlanner.apk` 받아서 설치 (출처를 알 수 없는 앱 허용 필요)
+          files: |
+            dist/GamePlanner.apk
+            dist/GamePlanner-windows.zip

@@ -1,11 +1,11 @@
 {
-    "name": "game_planner",
-    "short_name": "game_planner",
+    "name": "게임 플래너",
+    "short_name": "게임 플래너",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#5C6BC0",
+    "description": "일정 + 게임 스펙업 플래너",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

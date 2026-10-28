@@ -15,7 +15,25 @@
   - 다른 기기에서 바꾼 내용은 실시간으로 반영 (같은 항목을 양쪽에서 고치면 나중에 고친 쪽이 남음)
   - 로그인 안 해도 기기 안에서는 그대로 동작
 
-## 실행
+## 설치 (Flutter 필요 없음)
+
+코드를 올리면 GitHub Actions가 자동으로 빌드해서 레포의 **Releases → 최신 빌드** 에 올려 둡니다.
+
+- **PC (Windows)**: `GamePlanner-windows.zip` 받아서 압축 풀고 `game_planner.exe` 실행
+  (바탕화면 바로가기 만들어 두면 끝. 새 버전은 같은 폴더에 덮어쓰기)
+- **Android**: `GamePlanner.apk` 받아서 설치 (처음 한 번 "출처를 알 수 없는 앱" 허용)
+- **웹**: Cloudflare Pages 설정 시 `https://game-planner.pages.dev` 같은 주소로 접속,
+  크롬 주소창의 "앱 설치" 아이콘으로 PC에 프로그램처럼 설치 가능
+
+### 웹 배포 설정 (한 번만)
+
+1. https://dash.cloudflare.com 가입 → 우측 상단 계정 메뉴 → **Account ID** 복사
+2. My Profile → API Tokens → Create Token → *Edit Cloudflare Workers* 템플릿 (또는 권한 `Cloudflare Pages: Edit`) → 토큰 복사
+3. GitHub 레포 → Settings → Secrets and variables → Actions → New repository secret
+   - `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
+4. Actions 탭에서 `build` 워크플로를 다시 실행 → 배포된 주소는 Cloudflare 대시보드 Workers & Pages 에서 확인
+
+## 개발용 실행
 
 [Flutter SDK](https://docs.flutter.dev/get-started/install) 설치 후:
 

@@ -1,4 +1,4 @@
-# 게임 플래너 (game_planner)
+# Planner — 게임 플래너
 
 내 일정과 게임 스펙업을 함께 관리하는 Flutter 앱. Android, Windows(PC), 웹에서 동작합니다.
 
@@ -22,7 +22,7 @@
 - **PC (Windows)**: `GamePlanner-windows.zip` 받아서 압축 풀고 `game_planner.exe` 실행
   (바탕화면 바로가기 만들어 두면 끝. 새 버전은 같은 폴더에 덮어쓰기)
 - **Android**: `GamePlanner.apk` 받아서 설치 (처음 한 번 "출처를 알 수 없는 앱" 허용)
-- **웹**: https://siuuugil.github.io/-/ (레포 이름을 바꾸면 주소의 `-` 부분도 바뀜)
+- **웹**: https://siuuugil.github.io/Planner/
   크롬 주소창의 "앱 설치" 아이콘으로 PC에 프로그램처럼 설치 가능
 
 ## 개발용 실행

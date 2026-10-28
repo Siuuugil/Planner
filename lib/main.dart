@@ -7,7 +7,9 @@ import 'config.dart';
 import 'data/app_store.dart';
 import 'data/store_scope.dart';
 import 'data/sync_service.dart';
+import 'notify/notify_service.dart';
 import 'screens/home_shell.dart';
+import 'ui/maple.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,18 +17,19 @@ Future<void> main() async {
   final store = await AppStore.open();
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
   final sync = SyncService(store, Supabase.instance.client);
-  runApp(GamePlannerApp(store: store, sync: sync));
+  final notify = await NotifyService.start(store);
+  runApp(MyPlannerApp(store: store, sync: sync, notify: notify));
 }
 
-class GamePlannerApp extends StatelessWidget {
-  const GamePlannerApp({super.key, required this.store, this.sync});
+class MyPlannerApp extends StatelessWidget {
+  const MyPlannerApp({super.key, required this.store, this.sync, this.notify});
 
   final AppStore store;
   final SyncService? sync;
+  final NotifyService? notify;
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF5C6BC0);
     final app = StoreScope(
       store: store,
       child: MaterialApp(
@@ -39,15 +42,13 @@ class GamePlannerApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        theme: ThemeData(colorSchemeSeed: seed, useMaterial3: true),
-        darkTheme: ThemeData(
-          colorSchemeSeed: seed,
-          brightness: Brightness.dark,
-          useMaterial3: true,
-        ),
+        theme: mapleTheme(),
         home: const HomeShell(),
       ),
     );
-    return sync == null ? app : SyncScope(sync: sync!, child: app);
+    Widget root = app;
+    if (notify != null) root = NotifyScope(notify: notify!, child: root);
+    if (sync != null) root = SyncScope(sync: sync!, child: root);
+    return root;
   }
 }

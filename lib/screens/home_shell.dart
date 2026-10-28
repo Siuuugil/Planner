@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/task.dart';
+import '../ui/maple.dart';
 import 'calendar_screen.dart';
 import 'games_screen.dart';
 import 'task_list_screen.dart';
@@ -42,6 +43,10 @@ class _HomeShellState extends State<HomeShell> {
         body: Row(
           children: [
             NavigationRail(
+              leading: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('🍁', style: TextStyle(fontSize: 30)),
+              ),
               selectedIndex: _index,
               onDestinationSelected: (i) => setState(() => _index = i),
               labelType: NavigationRailLabelType.all,
@@ -54,7 +59,7 @@ class _HomeShellState extends State<HomeShell> {
                   ),
               ],
             ),
-            const VerticalDivider(width: 1),
+            Container(width: 3, color: Maple.gold),
             Expanded(child: body),
           ],
         ),
@@ -63,7 +68,11 @@ class _HomeShellState extends State<HomeShell> {
 
     return Scaffold(
       body: body,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Maple.gold, width: 3)),
+        ),
+        child: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
@@ -74,6 +83,7 @@ class _HomeShellState extends State<HomeShell> {
               label: label,
             ),
         ],
+        ),
       ),
     );
   }

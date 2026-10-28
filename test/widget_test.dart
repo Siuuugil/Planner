@@ -60,7 +60,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await initializeDateFormatting('ko_KR');
     final store = await AppStore.open();
-    await tester.pumpWidget(GamePlannerApp(store: store));
+    await tester.pumpWidget(MyPlannerApp(store: store));
 
     expect(find.text('오늘 일정'), findsOneWidget);
     await tester.tap(find.text('업무'));

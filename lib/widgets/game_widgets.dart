@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/game.dart';
+import '../ui/maple.dart';
 
 const gameColors = [
   0xFF5C6BC0,
@@ -21,6 +22,7 @@ const weekdayNames = ['월', '화', '수', '목', '금', '토', '일'];
 String _num(double v) =>
     v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
+/// 숙제 = 퀘스트. 느낌표(미완료) / 체크(완료) 를 눌러 토글.
 class ChoreTile extends StatelessWidget {
   const ChoreTile({super.key, required this.game, required this.chore, this.showGame = false});
 
@@ -32,28 +34,31 @@ class ChoreTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final done = game.isChoreDone(chore, DateTime.now());
-    return CheckboxListTile(
-      value: done,
-      controlAffinity: ListTileControlAffinity.leading,
-      onChanged: (_) => store.toggleChore(game, chore),
+    return ListTile(
+      leading: QuestMark(done: done, onTap: () => store.toggleChore(game, chore)),
       title: Text(
         chore.title,
-        style: done ? const TextStyle(decoration: TextDecoration.lineThrough) : null,
+        style: done
+            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Maple.brownMid)
+            : null,
       ),
       subtitle: Text([
         if (showGame) game.name,
-        chore.period == ChorePeriod.daily ? '일일' : '주간',
+        chore.period == ChorePeriod.daily ? '일일 퀘스트' : '주간 퀘스트',
       ].join(' · ')),
-      secondary: showGame
+      onTap: () => store.toggleChore(game, chore),
+      onLongPress: () => showChoreEditor(context, game, existing: chore),
+      trailing: showGame
           ? null
           : IconButton(
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(Icons.edit_outlined, size: 20),
               onPressed: () => showChoreEditor(context, game, existing: chore),
             ),
     );
   }
 }
 
+/// 스펙업 목표 = EXP 게이지.
 class GoalTile extends StatelessWidget {
   const GoalTile({super.key, required this.game, required this.goal, this.showGame = false});
 
@@ -63,31 +68,39 @@ class GoalTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (goal.progress * 100).round();
     final deadline = goal.deadline == null
         ? null
         : 'D${_dday(goal.deadline!)} (${DateFormat('M/d').format(goal.deadline!)})';
-    return ListTile(
-      title: Text(showGame ? '[${game.name}] ${goal.title}' : goal.title),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          LinearProgressIndicator(
-            value: goal.progress,
-            color: Color(game.colorValue),
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(3),
-          ),
-          const SizedBox(height: 4),
-          Text([
-            '${_num(goal.current)} / ${_num(goal.target)}${goal.unit} ($pct%)',
-            ?deadline,
-          ].join(' · ')),
-        ],
-      ),
-      trailing: goal.achieved ? const Icon(Icons.emoji_events, color: Colors.amber) : null,
+    return InkWell(
       onTap: () => showGoalEditor(context, game, existing: goal),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (goal.achieved) const Text('🏆 '),
+                Expanded(
+                  child: Text(
+                    showGame ? '[${game.name}] ${goal.title}' : goal.title,
+                    style: const TextStyle(fontSize: 17),
+                  ),
+                ),
+                if (deadline != null)
+                  Text(deadline, style: const TextStyle(color: Maple.brownMid, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            GaugeBar(value: goal.progress),
+            const SizedBox(height: 4),
+            Text(
+              '${_num(goal.start)} → ${_num(goal.current)} / ${_num(goal.target)}${goal.unit}',
+              style: const TextStyle(color: Maple.brownMid, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

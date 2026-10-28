@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../data/store_scope.dart';
 import '../data/sync_service.dart';
+import '../ui/maple.dart';
 
 /// 로그인/회원가입 및 동기화 상태.
 class AccountScreen extends StatelessWidget {
@@ -11,13 +12,16 @@ class AccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sync = SyncScope.of(context)!;
-    return Scaffold(
-      appBar: AppBar(title: const Text('계정 · 동기화')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: sync.user == null ? _SignInForm(sync) : _SyncInfo(sync),
-        ),
+    return MapleScaffold(
+      title: '계정 · 동기화',
+      body: ListView(
+        children: [
+          MaplePanel(
+            icon: sync.user == null ? '🔑' : '☁️',
+            title: sync.user == null ? '로그인' : '동기화',
+            child: sync.user == null ? _SignInForm(sync) : _SyncInfo(sync),
+          ),
+        ],
       ),
     );
   }
@@ -67,9 +71,11 @@ class _SignInFormState extends State<_SignInForm> {
   Widget build(BuildContext context) {
     final hint = Theme.of(context).hintColor;
     return ListView(
-      padding: const EdgeInsets.all(24),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
       children: [
-        const Icon(Icons.cloud_sync_outlined, size: 56),
+        const Text('🍁', textAlign: TextAlign.center, style: TextStyle(fontSize: 48)),
         const SizedBox(height: 12),
         Text(
           '로그인하면 폰과 PC의 일정·숙제·목표가 자동으로 맞춰져요.\n'
@@ -130,7 +136,9 @@ class _SyncInfo extends StatelessWidget {
       SyncStatus.signedOut => (Icons.cloud_outlined, '로그아웃됨'),
     };
     return ListView(
-      padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(12),
       children: [
         ListTile(
           leading: const Icon(Icons.person_outline),

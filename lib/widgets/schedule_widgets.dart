@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/schedule.dart';
+import '../ui/maple.dart';
 
 class ScheduleTile extends StatelessWidget {
   const ScheduleTile({super.key, required this.schedule, this.showDate = false});
@@ -23,17 +24,17 @@ class ScheduleTile extends StatelessWidget {
         : '';
 
     return ListTile(
-      leading: Checkbox(
+      leading: SlotCheck(
         value: schedule.done,
         onChanged: (v) {
-          schedule.done = v ?? false;
+          schedule.done = v;
           store.commit();
         },
       ),
       title: Text(
         schedule.title,
         style: schedule.done
-            ? const TextStyle(decoration: TextDecoration.lineThrough)
+            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Maple.brownMid)
             : null,
       ),
       subtitle: Text(
@@ -46,10 +47,14 @@ class ScheduleTile extends StatelessWidget {
       ),
       trailing: game == null
           ? null
-          : Chip(
-              label: Text(game.name),
-              visualDensity: VisualDensity.compact,
-              side: BorderSide(color: Color(game.colorValue)),
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Color(game.colorValue).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Color(game.colorValue), width: 1.5),
+              ),
+              child: Text(game.name, style: const TextStyle(fontSize: 12)),
             ),
       onTap: () => showScheduleEditor(context, existing: schedule),
     );

@@ -2,7 +2,7 @@
 #  1) 검사·테스트
 #  2) Windows(.zip), Android(.apk), 웹 빌드
 #  3) 기본 브랜치면 "latest" 릴리스에 설치 파일 업데이트
-#  4) Cloudflare 시크릿이 있으면 웹 버전 배포
+#  4) 기본 브랜치면 웹 버전을 GitHub Pages에 배포
 name: build
 
 on:
@@ -73,25 +73,31 @@ jobs:
   web:
     needs: test
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter build web --release
-      - uses: actions/upload-artifact@v4
+      # GitHub Pages 주소가 https://<계정>.github.io/<레포이름>/ 이므로 base href를 맞춘다.
+      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - uses: actions/upload-pages-artifact@v3
         with:
-          name: web
           path: build/web
-      - name: Cloudflare Pages 배포
-        if: env.CLOUDFLARE_API_TOKEN != '' && github.ref_name == github.event.repository.default_branch
-        run: |
-          npx --yes wrangler@3 pages project create game-planner --production-branch=main || true
-          npx --yes wrangler@3 pages deploy build/web --project-name=game-planner --branch=main --commit-dirty=true
+
+  pages:
+    needs: web
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
 
   release:
     needs: [android, windows]

@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.siuuugil" "\0"
-            VALUE "FileDescription", "game_planner" "\0"
+            VALUE "FileDescription", "MyPlanner" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "game_planner" "\0"
+            VALUE "InternalName", "my_planner" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.siuuugil. All rights reserved." "\0"
-            VALUE "OriginalFilename", "game_planner.exe" "\0"
-            VALUE "ProductName", "game_planner" "\0"
+            VALUE "OriginalFilename", "my_planner.exe" "\0"
+            VALUE "ProductName", "MyPlanner" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

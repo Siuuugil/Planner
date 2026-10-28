@@ -30,7 +30,7 @@ class GamePlannerApp extends StatelessWidget {
     final app = StoreScope(
       store: store,
       child: MaterialApp(
-        title: '게임 플래너',
+        title: '마이플래너',
         debugShowCheckedModeBanner: false,
         locale: const Locale('ko', 'KR'),
         supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],

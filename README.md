@@ -1,11 +1,12 @@
-# Planner — 게임 플래너
+# 마이플래너 (MyPlanner)
 
-내 일정과 게임 스펙업을 함께 관리하는 Flutter 앱. Android, Windows(PC), 웹에서 동작합니다.
+일정, 업무, 기타 할 일, 게임 스펙업을 한곳에서 관리하는 Flutter 앱. Android, Windows(PC), 웹에서 동작합니다.
 
 ## 기능
 
-- **오늘**: 오늘 일정, 아직 안 한 게임 숙제, 진행 중인 스펙업 목표를 한 화면에
+- **오늘**: 오늘 일정, 마감이 오늘이거나 지난 할 일, 남은 게임 숙제, 진행 중인 스펙업 목표를 한 화면에
 - **일정**: 월/2주/주 캘린더, 일정 추가·수정·완료 체크, 게임과 연결 가능
+- **업무 / 기타**: 할 일 목록 (마감일·D-day, 메모, 완료 체크, 완료 항목 접기·일괄 삭제)
 - **게임**
   - 게임별 **일일/주간 숙제**: 게임마다 초기화 시각(기본 오전 6시)과 주간 초기화 요일(기본 수요일)을 설정하면 시간이 지나면 자동으로 다시 미완료가 됨
   - **스펙업 목표**: 시작값 → 현재값 → 목표값, 진행률 바, 마감일 D-day
@@ -19,9 +20,9 @@
 
 코드를 올리면 GitHub Actions가 자동으로 빌드해서 레포의 **Releases → 최신 빌드** 에 올려 둡니다.
 
-- **PC (Windows)**: `GamePlanner-windows.zip` 받아서 압축 풀고 `game_planner.exe` 실행
+- **PC (Windows)**: `MyPlanner-windows.zip` 받아서 압축 풀고 `my_planner.exe` 실행
   (바탕화면 바로가기 만들어 두면 끝. 새 버전은 같은 폴더에 덮어쓰기)
-- **Android**: `GamePlanner.apk` 받아서 설치 (처음 한 번 "출처를 알 수 없는 앱" 허용)
+- **Android**: `MyPlanner.apk` 받아서 설치 (처음 한 번 "출처를 알 수 없는 앱" 허용)
 - **웹**: https://siuuugil.github.io/Planner/
   크롬 주소창의 "앱 설치" 아이콘으로 PC에 프로그램처럼 설치 가능
 
@@ -56,9 +57,9 @@ flutter build web
 ```
 lib/
   main.dart                 앱 진입점, 테마, 한국어 로케일
-  models/                   Schedule, Game, Goal, Chore (+ 초기화 계산)
+  models/                   Schedule, Task, Game, Goal, Chore (+ 초기화 계산)
   data/                     AppStore(상태 + 저장 + 변경 추적), SyncService(Supabase 동기화)
-  screens/                  오늘 / 일정 / 게임 / 게임 상세
+  screens/                  오늘 / 일정 / 업무·기타 / 게임 / 게임 상세 / 계정
   widgets/                  타일과 추가·수정 다이얼로그
 test/                       초기화 계산·진행률·화면 테스트
 ```

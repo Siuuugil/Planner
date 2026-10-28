@@ -4,9 +4,10 @@ import 'package:intl/intl.dart';
 import '../data/store_scope.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/schedule_widgets.dart';
+import '../widgets/task_widgets.dart';
 import 'account_screen.dart';
 
-/// 오늘 할 것만 한눈에: 오늘 일정, 남은 게임 숙제, 진행 중인 스펙업 목표.
+/// 오늘 할 것만 한눈에: 오늘 일정, 마감된 할 일, 남은 게임 숙제, 진행 중인 스펙업 목표.
 class TodayScreen extends StatelessWidget {
   const TodayScreen({super.key});
 
@@ -15,6 +16,8 @@ class TodayScreen extends StatelessWidget {
     final store = StoreScope.of(context);
     final now = DateTime.now();
     final today = store.schedulesOn(now);
+    final dueTasks = store.tasks.where((t) => t.isDueBy(now)).toList()
+      ..sort((a, b) => a.due!.compareTo(b.due!));
     final chores = [
       for (final g in store.games)
         for (final c in g.chores)
@@ -42,15 +45,17 @@ class TodayScreen extends StatelessWidget {
           _Header('오늘 일정', '${today.where((s) => s.done).length}/${today.length}'),
           if (today.isEmpty) const _Empty('오늘 일정이 없어요'),
           for (final s in today) ScheduleTile(schedule: s),
-          _Header('남은 숙제', '${chores.length}개'),
-          if (store.games.isEmpty)
-            const _Empty('게임 탭에서 게임과 숙제를 추가해 보세요')
-          else if (chores.isEmpty)
-            const _Empty('숙제 끝! 🎉'),
-          for (final (g, c) in chores) ChoreTile(game: g, chore: c, showGame: true),
-          _Header('진행 중인 목표', '${goals.length}개'),
-          if (goals.isEmpty) const _Empty('진행 중인 스펙업 목표가 없어요'),
-          for (final (g, goal) in goals) GoalTile(game: g, goal: goal, showGame: true),
+          _Header('오늘까지 할 일', '${dueTasks.length}개'),
+          if (dueTasks.isEmpty) const _Empty('마감된 업무·기타 할 일이 없어요'),
+          for (final t in dueTasks) TaskTile(task: t, showCategory: true),
+          if (store.games.isNotEmpty) ...[
+            _Header('남은 숙제', '${chores.length}개'),
+            if (chores.isEmpty) const _Empty('숙제 끝! 🎉'),
+            for (final (g, c) in chores) ChoreTile(game: g, chore: c, showGame: true),
+            _Header('진행 중인 목표', '${goals.length}개'),
+            if (goals.isEmpty) const _Empty('진행 중인 스펙업 목표가 없어요'),
+            for (final (g, goal) in goals) GoalTile(game: g, goal: goal, showGame: true),
+          ],
         ],
       ),
     );

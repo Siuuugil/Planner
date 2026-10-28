@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/game.dart';
 import '../models/schedule.dart';
+import '../models/task.dart';
 import 'sync_row.dart';
 
 String newId() => DateTime.now().microsecondsSinceEpoch.toRadixString(36);
@@ -27,6 +28,7 @@ class AppStore extends ChangeNotifier {
 
   final List<Schedule> schedules = [];
   final List<Game> games = [];
+  final List<Task> tasks = [];
 
   /// id → 마지막으로 반영된 상태({'kind', 'data'}를 JSON 인코딩한 것). 변경 감지용.
   final Map<String, String> _known = {};
@@ -54,6 +56,8 @@ class AppStore extends ChangeNotifier {
           .map((e) => Schedule.fromJson(e as Map<String, dynamic>)));
       games.addAll((j['games'] as List? ?? [])
           .map((e) => Game.fromJson(e as Map<String, dynamic>)));
+      tasks.addAll((j['tasks'] as List? ?? [])
+          .map((e) => Task.fromJson(e as Map<String, dynamic>)));
     }
     final sync = _prefs.getString(_syncKey);
     if (sync != null) {
@@ -75,6 +79,7 @@ class AppStore extends ChangeNotifier {
   Map<String, (String, Map<String, dynamic>)> _snapshot() => {
         for (final s in schedules) s.id: ('schedule', s.toJson()),
         for (final g in games) g.id: ('game', g.toJson()),
+        for (final t in tasks) t.id: ('task', t.toJson()),
       };
 
   static String _encode(String kind, Map<String, dynamic>? data) =>
@@ -112,6 +117,7 @@ class AppStore extends ChangeNotifier {
       jsonEncode({
         'schedules': schedules.map((s) => s.toJson()).toList(),
         'games': games.map((g) => g.toJson()).toList(),
+        'tasks': tasks.map((t) => t.toJson()).toList(),
       }),
     );
     _prefs.setString(
@@ -137,26 +143,36 @@ class AppStore extends ChangeNotifier {
   void applyRemote(Iterable<SyncRow> rows) {
     var changed = false;
     for (final r in rows) {
+      // 이 버전이 모르는 종류(이후 버전에서 추가된 것)는 건드리지 않는다.
+      if (!const {'schedule', 'game', 'task'}.contains(r.kind)) continue;
       final local = _stamps[r.id];
       if (local != null && !r.updatedAt.isAfter(local)) continue;
       _stamps[r.id] = r.updatedAt;
       pending.remove(r.id);
-      schedules.removeWhere((s) => s.id == r.id);
-      final gi = games.indexWhere((g) => g.id == r.id);
-      if (gi >= 0 && (r.deleted || r.kind != 'game')) games.removeAt(gi);
+      final si = schedules.indexWhere((x) => x.id == r.id);
+      final gi = games.indexWhere((x) => x.id == r.id);
+      final ti = tasks.indexWhere((x) => x.id == r.id);
       if (r.deleted || r.data == null) {
+        if (si >= 0) schedules.removeAt(si);
+        if (gi >= 0) games.removeAt(gi);
+        if (ti >= 0) tasks.removeAt(ti);
         _known.remove(r.id);
       } else {
         // 서버(jsonb)는 키 순서를 바꾸므로 모델로 다시 인코딩한 값을 기준으로 삼는다.
         final Map<String, dynamic> data;
-        if (r.kind == 'schedule') {
-          final s = Schedule.fromJson(r.data!);
-          schedules.add(s);
-          data = s.toJson();
-        } else {
-          final g = Game.fromJson(r.data!);
-          gi >= 0 ? games[gi] = g : games.add(g);
-          data = g.toJson();
+        switch (r.kind) {
+          case 'schedule':
+            final x = Schedule.fromJson(r.data!);
+            si >= 0 ? schedules[si] = x : schedules.add(x);
+            data = x.toJson();
+          case 'game':
+            final x = Game.fromJson(r.data!);
+            gi >= 0 ? games[gi] = x : games.add(x);
+            data = x.toJson();
+          default:
+            final x = Task.fromJson(r.data!);
+            ti >= 0 ? tasks[ti] = x : tasks.add(x);
+            data = x.toJson();
         }
         _known[r.id] = _encode(r.kind, data);
       }
@@ -185,6 +201,7 @@ class AppStore extends ChangeNotifier {
   void clearAll() {
     schedules.clear();
     games.clear();
+    tasks.clear();
     _known.clear();
     _stamps.clear();
     pending.clear();
@@ -226,6 +243,20 @@ class AppStore extends ChangeNotifier {
     for (final s in schedules) {
       if (s.gameId == g.id) s.gameId = null;
     }
+    commit();
+  }
+
+  List<Task> tasksIn(TaskCategory c) =>
+      tasks.where((t) => t.category == c).toList();
+
+  void upsertTask(Task t) {
+    final i = tasks.indexWhere((e) => e.id == t.id);
+    i < 0 ? tasks.add(t) : tasks[i] = t;
+    commit();
+  }
+
+  void deleteTask(Task t) {
+    tasks.removeWhere((e) => e.id == t.id);
     commit();
   }
 

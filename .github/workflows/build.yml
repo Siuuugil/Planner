@@ -46,11 +46,11 @@ jobs:
       # 매번 같은 키로 서명해야 폰에서 덮어쓰기 업데이트가 된다.
       - run: mkdir -p ~/.android && cp android/ci-debug.keystore ~/.android/debug.keystore
       - run: flutter build apk --release --build-number=${{ github.run_number }}
-      - run: mv build/app/outputs/flutter-apk/app-release.apk GamePlanner.apk
+      - run: mv build/app/outputs/flutter-apk/app-release.apk MyPlanner.apk
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: GamePlanner.apk
+          path: MyPlanner.apk
 
   windows:
     needs: test
@@ -64,11 +64,11 @@ jobs:
       - run: flutter build windows --release --build-number=${{ github.run_number }}
       - name: zip
         shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath GamePlanner-windows.zip
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath MyPlanner-windows.zip
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: GamePlanner-windows.zip
+          path: MyPlanner-windows.zip
 
   web:
     needs: test
@@ -115,6 +115,13 @@ jobs:
         run: |
           git tag -f latest
           git push -f origin latest
+      - name: 이전 설치 파일 정리
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for a in $(gh release view latest --json assets -q '.assets[].name' 2>/dev/null); do
+            gh release delete-asset latest "$a" -y
+          done
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
@@ -124,8 +131,8 @@ jobs:
           body: |
             커밋 ${{ github.sha }} 기준 자동 빌드 (#${{ github.run_number }})
 
-            - **PC (Windows)**: `GamePlanner-windows.zip` 받아서 압축 풀고 `game_planner.exe` 실행
-            - **Android**: `GamePlanner.apk` 받아서 설치 (출처를 알 수 없는 앱 허용 필요)
+            - **PC (Windows)**: `MyPlanner-windows.zip` 받아서 압축 풀고 `my_planner.exe` 실행
+            - **Android**: `MyPlanner.apk` 받아서 설치 (출처를 알 수 없는 앱 허용 필요)
           files: |
-            dist/GamePlanner.apk
-            dist/GamePlanner-windows.zip
+            dist/MyPlanner.apk
+            dist/MyPlanner-windows.zip

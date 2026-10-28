@@ -2,7 +2,7 @@
     <!-- Supabase 동기화 -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="게임 플래너"
+        android:label="마이플래너"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

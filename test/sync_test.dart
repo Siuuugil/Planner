@@ -3,6 +3,7 @@ import 'package:game_planner/data/app_store.dart';
 import 'package:game_planner/data/sync_row.dart';
 import 'package:game_planner/models/game.dart';
 import 'package:game_planner/models/schedule.dart';
+import 'package:game_planner/models/task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -108,6 +109,27 @@ void main() {
     expect(store.games, isEmpty);
     store.commit();
     expect(store.pending, isEmpty);
+  });
+
+  test('할 일도 동기화되고, 모르는 종류는 무시한다', () async {
+    final store = await open();
+    store.upsertTask(Task(id: 't', title: '보고서', category: TaskCategory.work));
+    expect(store.pending['t']!.kind, 'task');
+
+    store.applyRemote([
+      SyncRow(
+        id: 't',
+        kind: 'task',
+        data: Task(id: 't', title: '보고서 제출', category: TaskCategory.work, done: true).toJson(),
+        deleted: false,
+        updatedAt: now.add(const Duration(minutes: 1)),
+      ),
+      SyncRow(id: 'x', kind: 'future_kind', data: {'a': 1}, deleted: false, updatedAt: now),
+    ]);
+    expect(store.tasks.single.title, '보고서 제출');
+    expect(store.tasks.single.done, isTrue);
+    expect(store.schedules, isEmpty);
+    expect(store.games, isEmpty);
   });
 
   test('동기화 도입 전 데이터는 처음 열 때 전부 올릴 대상이 된다', () async {

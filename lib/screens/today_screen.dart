@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/store_scope.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/schedule_widgets.dart';
+import 'account_screen.dart';
 
 /// 오늘 할 것만 한눈에: 오늘 일정, 남은 게임 숙제, 진행 중인 스펙업 목표.
 class TodayScreen extends StatelessWidget {
@@ -28,6 +29,7 @@ class TodayScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(DateFormat('M월 d일 EEEE', 'ko_KR').format(now)),
+        actions: const [SyncButton()],
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: '일정 추가',

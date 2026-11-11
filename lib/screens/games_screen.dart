@@ -7,6 +7,7 @@ import '../ui/maple.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/maple_widgets.dart';
 import 'character_screen.dart';
+import 'crystal_screen.dart';
 import 'game_detail_screen.dart';
 import 'settings_screen.dart';
 
@@ -30,6 +31,7 @@ class GamesScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 96),
         children: [
           const _CharactersPanel(),
+          const CrystalSummaryPanel(showWhenEmpty: true),
           if (store.games.isEmpty)
             const MaplePanel(
               icon: '🎮',

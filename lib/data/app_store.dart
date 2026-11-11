@@ -310,6 +310,31 @@ class AppStore extends ChangeNotifier {
   void toggleChore(Game g, Chore c) {
     final now = DateTime.now();
     c.lastDone = g.isChoreDone(c, now) ? null : now;
+    if (c.isBoss) g.recomputeCrystals(now);
     commit();
+  }
+
+  /// '메이플'이 들어간 게임 (없으면 만들어서 추가)
+  Game mapleGame() {
+    for (final g in games) {
+      if (g.name.contains('메이플')) return g;
+    }
+    final g = Game(
+      id: newId(),
+      name: '메이플스토리',
+      colorValue: 0xFFF39B1E,
+      resetHour: 0,
+      weeklyResetWeekday: DateTime.thursday,
+    );
+    games.add(g);
+    return g;
+  }
+
+  /// 결정석을 쓰는 게임 (보스 가격표나 보스 숙제가 있는 게임)
+  Game? crystalGame() {
+    for (final g in games) {
+      if (g.bosses.isNotEmpty || g.chores.any((c) => c.isBoss)) return g;
+    }
+    return null;
   }
 }

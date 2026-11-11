@@ -7,6 +7,7 @@ import '../widgets/game_widgets.dart';
 import '../widgets/schedule_widgets.dart';
 import '../widgets/task_widgets.dart';
 import 'account_screen.dart';
+import 'crystal_screen.dart';
 import 'settings_screen.dart';
 
 /// 오늘 할 것만 한눈에: 오늘 일정, 마감된 할 일, 남은 게임 숙제, 진행 중인 스펙업 목표.
@@ -117,6 +118,7 @@ class TodayScreen extends StatelessWidget {
                       children: withDividers(chores
                           .map((e) => ChoreTile(game: e.$1, chore: e.$2, showGame: true)))),
             ),
+            const CrystalSummaryPanel(),
             MaplePanel(
               icon: '⭐',
               title: '스펙업 진행 중',

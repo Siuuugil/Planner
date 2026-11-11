@@ -1,5 +1,6 @@
 import '../data/app_store.dart';
 import '../models/game.dart';
+import '../widgets/maple_widgets.dart' show koreanNumber;
 
 /// 알림 설정 (기기별, 동기화 안 함).
 class NotifySettings {
@@ -129,13 +130,17 @@ List<Reminder> planReminders(
       if (weekly.isNotEmpty) {
         final start = g.periodStart(ChorePeriod.weekly, now);
         final reset = DateTime(start.year, start.month, start.day + 7, g.resetHour);
-        final left = weekly.where((c) => !g.isChoreDone(c, now)).length;
+        final undone = weekly.where((c) => !g.isChoreDone(c, now)).toList();
+        final left = undone.length;
+        final meso = undone.fold<int>(0, (a, c) => a + g.bossIncome(c));
         if (left > 0) {
           add(Reminder(
             'cw:${g.id}',
             reset.subtract(before),
             '🛡️ ${g.name} 주간 숙제 $left개 남음',
-            '${s.choreHoursBefore}시간 뒤 주간 초기화돼요',
+            meso > 0
+                ? '💎 결정석 ${koreanNumber(meso)} 메소가 남았어요 · ${s.choreHoursBefore}시간 뒤 초기화'
+                : '${s.choreHoursBefore}시간 뒤 주간 초기화돼요',
           ));
         }
       }

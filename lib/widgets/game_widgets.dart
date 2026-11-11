@@ -5,6 +5,7 @@ import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/game.dart';
 import '../ui/maple.dart';
+import '../screens/crystal_screen.dart';
 import 'maple_widgets.dart';
 
 const gameColors = [
@@ -43,17 +44,27 @@ class ChoreTile extends StatelessWidget {
             ? const TextStyle(decoration: TextDecoration.lineThrough, color: Maple.brownMid)
             : null,
       ),
-      subtitle: Text([
-        if (showGame) game.name,
-        chore.period == ChorePeriod.daily ? '일일 퀘스트' : '주간 퀘스트',
-      ].join(' · ')),
+      subtitle: Text(chore.isBoss
+          ? [
+              '💎 ${koreanNumber(game.bossIncome(chore))}',
+              ?chore.charName,
+              if (chore.partySize > 1) '${chore.partySize}인 파티',
+            ].join(' · ')
+          : [
+              if (showGame) game.name,
+              chore.period == ChorePeriod.daily ? '일일 퀘스트' : '주간 퀘스트',
+            ].join(' · ')),
       onTap: () => store.toggleChore(game, chore),
-      onLongPress: () => showChoreEditor(context, game, existing: chore),
+      onLongPress: () => chore.isBoss
+          ? showBossChoreEditor(context, game, existing: chore)
+          : showChoreEditor(context, game, existing: chore),
       trailing: showGame
           ? null
           : IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: () => showChoreEditor(context, game, existing: chore),
+              onPressed: () => chore.isBoss
+                  ? showBossChoreEditor(context, game, existing: chore)
+                  : showChoreEditor(context, game, existing: chore),
             ),
     );
   }
@@ -72,7 +83,8 @@ class GoalTile extends StatelessWidget {
     final deadline = goal.deadline == null
         ? null
         : 'D${_dday(goal.deadline!)} (${DateFormat('M/d').format(goal.deadline!)})';
-    final String Function(double) fmt = goal.autoMetric == 'combat' ? koreanNumber : _num;
+    final String Function(double) fmt =
+        const {'combat', 'crystal'}.contains(goal.autoMetric) ? koreanNumber : _num;
     return InkWell(
       onTap: () => showGoalEditor(context, game, existing: goal),
       child: Padding(
@@ -100,6 +112,7 @@ class GoalTile extends StatelessWidget {
               [
                 '${fmt(goal.start)} → ${fmt(goal.current)} / ${fmt(goal.target)}${goal.unit}',
                 if (goal.autoCharId != null) '🔗 캐릭터 자동 갱신',
+                if (goal.autoMetric == 'crystal') '💎 결정석 자동 누적',
               ].join('  ·  '),
               style: const TextStyle(color: Maple.brownMid, fontSize: 13),
             ),

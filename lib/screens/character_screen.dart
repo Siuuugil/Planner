@@ -270,22 +270,6 @@ class _GoalsPanel extends StatelessWidget {
     );
   }
 
-  /// '메이플' 이 들어간 게임을 찾고, 없으면 만든다.
-  Game _mapleGame(AppStore store) {
-    for (final g in store.games) {
-      if (g.name.contains('메이플')) return g;
-    }
-    final g = Game(
-      id: newId(),
-      name: '메이플스토리',
-      colorValue: 0xFFF39B1E,
-      resetHour: 0,
-      weeklyResetWeekday: DateTime.thursday,
-    );
-    store.games.add(g);
-    return g;
-  }
-
   Future<void> _addGoal(BuildContext context, AppStore store, String metric) async {
     final isLevel = metric == 'level';
     final now = isLevel ? c.levelProgress : c.combatPower!.toDouble();
@@ -346,7 +330,7 @@ class _GoalsPanel extends StatelessWidget {
     );
     ctrl.dispose();
     if (target == null) return;
-    final game = _mapleGame(store);
+    final game = store.mapleGame();
     game.goals.add(Goal(
       id: newId(),
       title: isLevel ? '${c.name} 레벨' : '${c.name} 전투력',

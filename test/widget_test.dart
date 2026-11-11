@@ -71,6 +71,6 @@ void main() {
     expect(find.text('일일 숙제'), findsOneWidget);
     await tester.tap(find.text('결정석'));
     await tester.pumpAndSettle();
-    expect(find.text('보스 수확 등록하기'), findsOneWidget);
+    expect(find.text('보스 선택하기'), findsOneWidget);
   });
 }

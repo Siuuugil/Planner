@@ -168,7 +168,7 @@ class _MapleScreenState extends State<MapleScreen> {
                 const SizedBox(height: 10),
                 FilledButton(
                   onPressed: () => showBossChoreEditor(context, store.mapleGame()),
-                  child: const Text('보스 수확 등록하기'),
+                  child: const Text('보스 선택하기'),
                 ),
               ],
             ),
@@ -181,8 +181,8 @@ class _MapleScreenState extends State<MapleScreen> {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: OutlinedButton.icon(
-          icon: const Icon(Icons.add),
-          label: const Text('보스 수확 추가'),
+          icon: const Icon(Icons.checklist_rounded),
+          label: const Text('보스 선택 (캐릭터 추가)'),
           onPressed: () => showBossChoreEditor(context, g),
         ),
       ),

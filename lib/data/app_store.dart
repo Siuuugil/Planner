@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +10,15 @@ import '../models/schedule.dart';
 import '../models/task.dart';
 import 'sync_row.dart';
 
-String newId() => DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+final _rand = Random();
+var _seq = 0;
+
+/// 고유 id: 시각 + 순번 + 난수.
+/// (웹은 시각 정밀도가 밀리초라 반복문에서 시각만 쓰면 id가 겹친다)
+String newId() =>
+    '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}'
+    '${(_seq++ % 1296).toRadixString(36).padLeft(2, '0')}'
+    '${_rand.nextInt(1 << 30).toRadixString(36)}';
 
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
@@ -78,6 +87,12 @@ class AppStore extends ChangeNotifier {
       // 동기화 도입 전 데이터: 전부 올릴 대상으로 표시.
       _save();
     }
+    // 예전 버전(웹)에서 겹친 id로 만들어진 가격표 정리
+    var fixed = false;
+    for (final g in games) {
+      fixed |= g.fixDuplicateIds(newId);
+    }
+    if (fixed && _diff()) _save();
   }
 
   Map<String, (String, Map<String, dynamic>)> _snapshot() => {

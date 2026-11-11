@@ -96,4 +96,79 @@ void main() {
     expect(g.bosses.firstWhere((b) => b.name == '익스트림 검은 마법사').monthly, isTrue);
     expect(g.applyDefaultBossPrices(() => 'z'), 0);
   });
+
+  group('보스 선택', () {
+    var n = 0;
+    String id() => 'id${n++}';
+    Game fresh() => Game(id: 'g', name: '메이플', resetHour: 0, weeklyResetWeekday: DateTime.thursday)
+      ..applyDefaultBossPrices(id);
+
+    Set<String> names(Game g, String c) => {
+          for (final e in g.bossPlanOf(c).entries) '${e.value.$1} ${e.key}',
+        };
+
+    test('검밑솔: 자쿰~듄켈 중 비싼 12개 (스우는 하드)', () {
+      final g = fresh()..applyBossPreset('단풍이', BossPreset.geommilsol, id);
+      expect(names(g, '단풍이'), {
+        '하드 진 힐라', '하드 듄켈', '하드 윌', '카오스 가디언 엔젤 슬라임', '카오스 더스크', '하드 루시드',
+        '하드 스우', '하드 데미안', '카오스 파풀라투스', '카오스 벨룸', '하드 매그너스', '카오스 피에르',
+      });
+    });
+
+    test('하세이칼: 벨룸 뺀 상위 9 + 하드 세렌·이지 칼로스·이지 대적자 + 하드 검마', () {
+      final g = fresh()..applyBossPreset('단풍이', BossPreset.haseikal, id);
+      final s = names(g, '단풍이');
+      expect(s.length, 13);
+      expect(s, containsAll(['하드 선택받은 세렌', '이지 감시자 칼로스', '이지 최초의 대적자', '하드 검은 마법사', '카오스 파풀라투스']));
+      expect(s.contains('카오스 벨룸'), isFalse);
+    });
+
+    test('노적노칼: 파풀·스우 빼고 칼로스·대적자 노멀 + 이지 카링·벨로나', () {
+      final g = fresh()..applyBossPreset('단풍이', BossPreset.nojeoknokal, id);
+      final s = names(g, '단풍이');
+      expect(s, containsAll(['노멀 감시자 칼로스', '노멀 최초의 대적자', '이지 카링', '이지 벨로나', '하드 검은 마법사']));
+      expect(s.any((x) => x.endsWith('파풀라투스') || x.endsWith('스우')), isFalse);
+      expect(s.length, 13); // 주간 12 + 월간 1
+    });
+
+    test('난이도 바꾸면 완료 상태 유지, 같은 칩 다시 누르면 해제, 캐릭터별로 따로', () {
+      final g = fresh();
+      g.setBoss('A', '루시드', '노멀', 1, id);
+      final chore = g.bossPlanOf('A')['루시드']!.$3..lastDone = DateTime.now();
+      g.setBoss('A', '루시드', '하드', 2, id);
+      final after = g.bossPlanOf('A')['루시드']!;
+      expect(after.$1, '하드');
+      expect(after.$2, 2);
+      expect(identical(after.$3, chore), isTrue);
+      expect(g.bossIncome(after.$3), 59700000 ~/ 2);
+
+      g.setBoss('B', '루시드', '이지', 1, id);
+      expect(g.bossPlanOf('A').length, 1);
+      expect(g.bossPlanOf('B').length, 1);
+
+      g.setBoss('A', '루시드', null, 1, id);
+      expect(g.bossPlanOf('A'), isEmpty);
+      g.clearBosses('B');
+      expect(g.chores, isEmpty);
+    });
+  });
+
+  test('id는 반복문에서 연달아 만들어도 겹치지 않음', () {
+    final ids = {for (var i = 0; i < 5000; i++) newId()};
+    expect(ids.length, 5000);
+  });
+
+  test('겹친 가격표 id 정리 (첫 항목 유지)', () {
+    final g = Game(id: 'g', name: '메이플', bosses: [
+      BossPrice(id: 'x', name: '하드 루시드', price: 1),
+      BossPrice(id: 'x', name: '하드 윌', price: 2),
+    ], chores: [
+      Chore(id: 'c', title: '하드 루시드', period: ChorePeriod.weekly, bossId: 'x'),
+    ]);
+    var n = 0;
+    expect(g.fixDuplicateIds(() => 'new${n++}'), isTrue);
+    expect(g.bosses.map((b) => b.id), ['x', 'new0']);
+    expect(g.bossById('x')!.name, '하드 루시드');
+    expect(g.fixDuplicateIds(() => 'z'), isFalse);
+  });
 }

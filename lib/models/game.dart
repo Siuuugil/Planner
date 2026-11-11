@@ -128,8 +128,98 @@ const defaultBossPrices = <(String, int, bool)>[
   ('노멀 유피테르', 1560000000, false), ('하드 유피테르', 5387000000, false),
 ];
 
-/// 주간 결정석 판매 제한 (캐릭터당)
-const weeklyCrystalLimit = 14;
+/// 주간 결정석 판매 제한 (캐릭터당, 월간 보스 제외)
+const weeklyCrystalLimit = 12;
+
+const bossDifficulties = ['이지', '노멀', '하드', '카오스', '익스트림'];
+
+/// '하드 루시드' → ('하드', '루시드'), '카웅' → ('', '카웅')
+(String, String) splitBossName(String name) {
+  final i = name.indexOf(' ');
+  if (i > 0 && bossDifficulties.contains(name.substring(0, i))) {
+    return (name.substring(0, i), name.substring(i + 1));
+  }
+  return ('', name);
+}
+
+/// 보스 선택 화면에 나오는 보스와 난이도 (주간 결정석 대상)
+class BossDef {
+  const BossDef(this.name, this.difficulties, {this.monthly = false, this.grandis = false});
+
+  final String name;
+  final List<String> difficulties;
+  final bool monthly;
+
+  /// 그란디스 보스 (세렌 이후)
+  final bool grandis;
+}
+
+const bossCatalog = <BossDef>[
+  BossDef('자쿰', ['카오스']),
+  BossDef('매그너스', ['하드']),
+  BossDef('파풀라투스', ['카오스']),
+  BossDef('피에르', ['카오스']),
+  BossDef('반반', ['카오스']),
+  BossDef('블러디퀸', ['카오스']),
+  BossDef('벨룸', ['카오스']),
+  BossDef('스우', ['노멀', '하드', '익스트림']),
+  BossDef('데미안', ['노멀', '하드']),
+  BossDef('가디언 엔젤 슬라임', ['노멀', '카오스']),
+  BossDef('루시드', ['이지', '노멀', '하드']),
+  BossDef('윌', ['이지', '노멀', '하드']),
+  BossDef('더스크', ['노멀', '카오스']),
+  BossDef('진 힐라', ['노멀', '하드']),
+  BossDef('듄켈', ['노멀', '하드']),
+  BossDef('선택받은 세렌', ['노멀', '하드', '익스트림'], grandis: true),
+  BossDef('감시자 칼로스', ['이지', '노멀', '카오스', '익스트림'], grandis: true),
+  BossDef('최초의 대적자', ['이지', '노멀', '하드', '익스트림'], grandis: true),
+  BossDef('카링', ['이지', '노멀', '하드', '익스트림'], grandis: true),
+  BossDef('찬란한 흉성', ['노멀', '하드'], grandis: true),
+  BossDef('벨로나', ['이지', '노멀', '하드'], grandis: true),
+  BossDef('림보', ['노멀', '하드', '익스트림'], grandis: true),
+  BossDef('발드릭스', ['노멀', '하드', '익스트림'], grandis: true),
+  BossDef('유피테르', ['노멀', '하드'], grandis: true),
+  BossDef('검은 마법사', ['하드', '익스트림'], monthly: true),
+];
+
+enum BossPreset {
+  geommilsol('검밑솔'),
+  haseikal('하세이칼'),
+  nojeoknokal('노적노칼');
+
+  const BossPreset(this.label);
+  final String label;
+}
+
+/// 프리셋의 (보스, 난이도) 목록. [price]는 '난이도 보스' 이름 → 판매가.
+/// 규칙은 maple.ygh.kr 보스 수익 계산기와 같다.
+List<(String, String)> presetBosses(BossPreset p, int Function(String name) price) {
+  // 검밑솔 보스(자쿰~듄켈)를 가장 높은 난이도로 (스우는 하드), 비싼 순
+  final lower = bossCatalog.takeWhile((b) => b.name != '선택받은 세렌').map((b) {
+    final d = b.name == '스우' ? '하드' : b.difficulties.last;
+    return (b.name, d);
+  }).toList()
+    ..sort((a, b) => price('${b.$2} ${b.$1}').compareTo(price('${a.$2} ${a.$1}')));
+  final geom = lower.take(12).toList();
+  final hasei = [
+    ...lower.where((e) => e.$1 != '벨룸').take(9),
+    ('선택받은 세렌', '하드'),
+    ('감시자 칼로스', '이지'),
+    ('최초의 대적자', '이지'),
+  ];
+  return switch (p) {
+    BossPreset.geommilsol => geom,
+    BossPreset.haseikal => [...hasei, ('검은 마법사', '하드')],
+    BossPreset.nojeoknokal => [
+        for (final e in hasei)
+          if (e.$1 != '파풀라투스' && e.$1 != '스우')
+            (e.$1 == '감시자 칼로스' || e.$1 == '최초의 대적자') ? (e.$1, '노멀') : e,
+        ('카링', '이지'),
+        ('벨로나', '이지'),
+        ('검은 마법사', '하드'),
+      ],
+  };
+}
 
 /// 스펙업 목표. 예: "아이템 레벨 1640 → 1680", current=1640, target=1680.
 class Goal {
@@ -241,6 +331,37 @@ class Game {
     return null;
   }
 
+  /// 겹친 id를 정리한다: 첫 항목은 그대로 두고 나머지에 새 id.
+  /// (숙제는 지금까지 첫 항목을 가리켜 왔으므로 동작이 바뀌지 않는다)
+  bool fixDuplicateIds(String Function() newId) {
+    var changed = false;
+    final seen = <String>{};
+    for (var i = 0; i < bosses.length; i++) {
+      if (!seen.add(bosses[i].id)) {
+        final b = bosses[i];
+        bosses[i] = BossPrice(id: newId(), name: b.name, price: b.price, monthly: b.monthly);
+        changed = true;
+      }
+    }
+    seen.clear();
+    for (var i = 0; i < chores.length; i++) {
+      if (!seen.add(chores[i].id)) {
+        final c = Chore.fromJson(chores[i].toJson());
+        chores[i] = Chore(
+          id: newId(),
+          title: c.title,
+          period: c.period,
+          lastDone: c.lastDone,
+          bossId: c.bossId,
+          partySize: c.partySize,
+          charName: c.charName,
+        );
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   /// 기본 가격표 적용: 없는 보스는 추가, 같은 이름은 가격을 최신값으로. 바뀐 개수 반환.
   int applyDefaultBossPrices(String Function() newId) {
     var changed = 0;
@@ -256,6 +377,74 @@ class Game {
     }
     return changed;
   }
+
+  /// '난이도 보스' 이름의 가격표 항목 (없으면 기본 가격으로 만든다)
+  BossPrice bossPriceFor(String name, String Function() newId) {
+    for (final b in bosses) {
+      if (b.name == name) return b;
+    }
+    final d = defaultBossPrices.where((e) => e.$1 == name).firstOrNull;
+    final b = BossPrice(id: newId(), name: name, price: d?.$2 ?? 0, monthly: d?.$3 ?? false);
+    bosses.add(b);
+    return b;
+  }
+
+  int priceOf(String name) {
+    for (final b in bosses) {
+      if (b.name == name) return b.price;
+    }
+    return defaultBossPrices.where((e) => e.$1 == name).firstOrNull?.$2 ?? 0;
+  }
+
+  /// [charName] 캐릭터가 잡는 보스: 보스 이름 → (난이도, 파티 인원, 숙제)
+  Map<String, (String, int, Chore)> bossPlanOf(String? charName) => {
+        for (final c in chores)
+          if (c.isBoss && c.charName == charName && bossById(c.bossId) != null)
+            splitBossName(bossById(c.bossId)!.name).$2: (splitBossName(bossById(c.bossId)!.name).$1, c.partySize, c),
+      };
+
+  /// 캐릭터의 보스 한 개 설정. [difficulty]가 null이면 뺀다.
+  /// 같은 보스의 난이도만 바꾸면 이번 주 완료 상태는 유지한다.
+  void setBoss(String? charName, String boss, String? difficulty, int partySize, String Function() newId) {
+    final existing = bossPlanOf(charName)[boss]?.$3;
+    if (difficulty == null) {
+      if (existing != null) chores.remove(existing);
+      return;
+    }
+    final name = difficulty.isEmpty ? boss : '$difficulty $boss';
+    final price = bossPriceFor(name, newId);
+    if (existing != null) {
+      existing
+        ..bossId = price.id
+        ..title = name
+        ..partySize = partySize;
+    } else {
+      chores.add(Chore(
+        id: newId(),
+        title: name,
+        period: ChorePeriod.weekly,
+        bossId: price.id,
+        partySize: partySize,
+        charName: charName,
+      ));
+    }
+  }
+
+  /// 프리셋 적용: 캐릭터의 보스를 전부 바꾼다 (파티 인원은 1인으로)
+  void applyBossPreset(String? charName, BossPreset p, String Function() newId) {
+    final keep = presetBosses(p, priceOf);
+    final want = {for (final (b, d) in keep) b: d};
+    for (final b in bossPlanOf(charName).keys.toList()) {
+      if (!want.containsKey(b)) setBoss(charName, b, null, 1, newId);
+    }
+    for (final (b, d) in keep) {
+      setBoss(charName, b, d, bossPlanOf(charName)[b]?.$2 ?? 1, newId);
+    }
+  }
+
+  /// 캐릭터의 보스 전부 해제
+  void clearBosses(String? charName) =>
+      chores.removeWhere((c) => c.isBoss && c.charName == charName);
 
   /// 보스 1회 클리어 수익 (파티 인원으로 나눔)
   int bossIncome(Chore c) {

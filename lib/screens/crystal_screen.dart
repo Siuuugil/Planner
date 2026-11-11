@@ -10,6 +10,7 @@ import '../models/game.dart';
 import '../ui/kit.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/maple_widgets.dart';
+import 'boss_picker_screen.dart';
 
 class CrystalScreen extends StatelessWidget {
   const CrystalScreen({super.key});
@@ -52,7 +53,7 @@ class CrystalScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  '+ 를 눌러 매주 잡는 보스를 등록하세요.\n가격은 $bossPriceTableDate 기준 가격표가 자동으로 들어가요.',
+                  '아래 "보스 선택"에서 캐릭터별로 잡는 보스를 고르세요.\n검밑솔·하세이칼·노적노칼 버튼으로 한 번에 채울 수 있어요.',
                   style: const TextStyle(color: Ui.subtext),
                 ),
               ],
@@ -71,10 +72,13 @@ class CrystalScreen extends StatelessWidget {
         AppSection(
           title: e.key,
           accent: const Color(0xFFE8833A),
-          trailing: CountBadge(
-            '${e.value.where((c) => g.isChoreDone(c, now)).length}/${e.value.length}'
-            '${e.value.length > weeklyCrystalLimit ? ' ⚠️' : ''}',
-          ),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            CountBadge('${e.value.where((c) => g.isChoreDone(c, now)).length}/${e.value.length}'),
+            TextButton(
+              onPressed: () => showBossChoreEditor(context, g, existing: e.value.first),
+              child: const Text('보스 선택'),
+            ),
+          ]),
           child: Column(
             children: [
               if (e.value.length > weeklyCrystalLimit)
@@ -511,144 +515,16 @@ class _PricePanelState extends State<_PricePanel> {
   }
 }
 
-/// 보스 수확 추가/수정: 보스·파티 인원·캐릭터
+/// 보스 수확 추가/수정 → 보스 선택 화면 (해당 캐릭터)
 Future<void> showBossChoreEditor(BuildContext context, Game g, {Chore? existing}) {
-  if (g.bosses.isEmpty) {
-    g.applyDefaultBossPrices(newId);
-    StoreScope.read(context).commit();
-  }
-  return showDialog(context: context, builder: (_) => _BossChoreEditor(g, existing));
-}
-
-class _BossChoreEditor extends StatefulWidget {
-  const _BossChoreEditor(this.g, this.existing);
-
-  final Game g;
-  final Chore? existing;
-
-  @override
-  State<_BossChoreEditor> createState() => _BossChoreEditorState();
-}
-
-class _BossChoreEditorState extends State<_BossChoreEditor> {
-  late String? _bossId = widget.existing?.bossId;
-  late int _party = widget.existing?.partySize ?? 1;
-  late final _char = TextEditingController(text: widget.existing?.charName);
-
-  @override
-  void dispose() {
-    _char.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    final b = widget.g.bossById(_bossId);
-    if (b == null) return;
-    final store = StoreScope.read(context);
-    final char = _char.text.trim().isEmpty ? null : _char.text.trim();
-    final e = widget.existing;
-    if (e != null) {
-      e
-        ..bossId = b.id
-        ..title = b.name
-        ..partySize = _party
-        ..charName = char;
-    } else {
-      widget.g.chores.add(Chore(
-        id: newId(),
-        title: b.name,
-        period: ChorePeriod.weekly,
-        bossId: b.id,
-        partySize: _party,
-        charName: char,
-      ));
-    }
-    widget.g.recomputeCrystals(DateTime.now());
-    store.commit();
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final store = StoreScope.of(context);
-    final g = widget.g;
-    final bosses = [...g.bosses]..sort((a, b) => b.price.compareTo(a.price));
-    final b = g.bossById(_bossId);
-    final names = {for (final c in store.characters) c.name, for (final c in g.chores) ?c.charName}.toList();
-
-    return AlertDialog(
-      title: Text(widget.existing == null ? '⚔️ 보스 수확 추가' : '⚔️ 보스 수확 수정'),
-      content: SizedBox(
-        width: 400,
-        child: bosses.isEmpty
-            ? const Text('보스 가격표가 비어 있어요.')
-            : SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: _bossId,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: '보스'),
-                      items: [
-                        for (final x in bosses)
-                          DropdownMenuItem(
-                            value: x.id,
-                            child: Text('${x.name}  ${x.price == 0 ? '(가격 미입력)' : koreanNumber(x.price)}'),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _bossId = v),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('파티 인원 (판매가를 나눠 가져요)'),
-                    const SizedBox(height: 6),
-                    SegmentedButton<int>(
-                      segments: [for (var n = 1; n <= 6; n++) ButtonSegment(value: n, label: Text('$n'))],
-                      selected: {_party},
-                      showSelectedIcon: false,
-                      onSelectionChanged: (s) => setState(() => _party = s.first),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _char,
-                      decoration: const InputDecoration(labelText: '캐릭터 (선택)'),
-                    ),
-                    if (names.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Wrap(
-                          spacing: 6,
-                          children: [
-                            for (final n in names)
-                              ActionChip(label: Text(n), onPressed: () => setState(() => _char.text = n)),
-                          ],
-                        ),
-                      ),
-                    if (b != null && b.price > 0) ...[
-                      const SizedBox(height: 12),
-                      Text('1회 수익: ${koreanNumber(b.price ~/ _party)} 메소', style: const TextStyle(fontSize: 17)),
-                    ],
-                  ],
-                ),
-              ),
-      ),
-      actions: [
-        if (widget.existing != null)
-          TextButton(
-            onPressed: () {
-              g.chores.remove(widget.existing);
-              g.recomputeCrystals(DateTime.now());
-              store.commit();
-              Navigator.pop(context);
-            },
-            child: const Text('삭제'),
-          ),
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
-        FilledButton(onPressed: _save, child: const Text('저장')),
-      ],
-    );
-  }
+  final store = StoreScope.read(context);
+  if (!store.games.contains(g)) store.games.add(g);
+  if (g.bosses.isEmpty) g.applyDefaultBossPrices(newId);
+  store.commit();
+  return Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => BossPickerScreen(gameId: g.id, charName: existing?.charName)),
+  );
 }
 
 /// 메이플 탭의 결정석 내용 (이번 주, 캐릭터별 보스, 기록, 가격표)

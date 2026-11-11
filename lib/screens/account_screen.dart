@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../data/store_scope.dart';
 import '../data/sync_service.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 
 /// 로그인/회원가입 및 동기화 상태.
 class AccountScreen extends StatelessWidget {
@@ -12,12 +12,11 @@ class AccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sync = SyncScope.of(context)!;
-    return MapleScaffold(
+    return AppScaffold(
       title: '계정 · 동기화',
       body: ListView(
         children: [
-          MaplePanel(
-            icon: sync.user == null ? '🔑' : '☁️',
+          AppSection(
             title: sync.user == null ? '로그인' : '동기화',
             child: sync.user == null ? _SignInForm(sync) : _SyncInfo(sync),
           ),

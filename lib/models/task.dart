@@ -1,6 +1,6 @@
 enum TaskCategory {
   work('업무'),
-  etc('기타');
+  etc('개인');
 
   const TaskCategory(this.label);
   final String label;

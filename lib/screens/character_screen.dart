@@ -8,7 +8,7 @@ import '../maple/nexon_api.dart';
 import '../models/game.dart';
 import '../models/maple_character.dart';
 import '../ui/growth_chart.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/maple_widgets.dart';
 
@@ -23,7 +23,7 @@ class CharacterScreen extends StatelessWidget {
     final store = StoreScope.of(context);
     final maple = MapleScope.of(context)!;
     final c = store.characterById(characterId);
-    if (c == null) return const MapleScaffold(title: '', body: SizedBox());
+    if (c == null) return const AppScaffold(title: '', body: SizedBox());
     final busy = maple.busy.contains(c.id);
 
     Future<void> run(Future<void> Function() f) async {
@@ -36,7 +36,7 @@ class CharacterScreen extends StatelessWidget {
       }
     }
 
-    return MapleScaffold(
+    return AppScaffold(
       title: c.name,
       actions: [
         IconButton(
@@ -88,14 +88,13 @@ class _InfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaplePanel(
-      icon: '🍁',
+    return AppSection(
       title: '캐릭터 정보',
-      accent: Maple.leaf,
+      accent: Ui.green,
       trailing: busy
           ? const Padding(
               padding: EdgeInsets.only(right: 8),
-              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Ui.subtext)),
             )
           : null,
       padding: const EdgeInsets.all(12),
@@ -107,10 +106,10 @@ class _InfoPanel extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Maple.skyTop, Maple.skyBottom],
+                colors: [Ui.accentSoft, Ui.bg],
               ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Maple.brown, width: 2),
+              border: Border.all(color: Ui.text, width: 2),
             ),
             child: NexonImage(c.image, size: 110),
           ),
@@ -120,9 +119,9 @@ class _InfoPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(c.name, style: const TextStyle(fontSize: 22)),
-                Text('Lv.${c.level}  ${c.job}', style: const TextStyle(fontSize: 16, color: Maple.orange)),
+                Text('Lv.${c.level}  ${c.job}', style: const TextStyle(fontSize: 16, color: Ui.accent)),
                 Text([c.world, if (c.guild != null && c.guild!.isNotEmpty) '길드 ${c.guild}'].join(' · '),
-                    style: const TextStyle(color: Maple.brownMid, fontSize: 13)),
+                    style: const TextStyle(color: Ui.subtext, fontSize: 13)),
                 const SizedBox(height: 8),
                 GaugeBar(value: c.expRate / 100, label: 'EXP ${c.expRate.toStringAsFixed(3)}%'),
                 const SizedBox(height: 6),
@@ -130,7 +129,7 @@ class _InfoPanel extends StatelessWidget {
                   Text('⚔️ 전투력 ${koreanNumber(c.combatPower!)}', style: const TextStyle(fontSize: 16)),
                 if (c.updatedAt != null)
                   Text('갱신 ${DateFormat('M/d HH:mm').format(c.updatedAt!)}',
-                      style: const TextStyle(color: Maple.brownMid, fontSize: 12)),
+                      style: const TextStyle(color: Ui.subtext, fontSize: 12)),
               ],
             ),
           ),
@@ -159,11 +158,10 @@ class _GrowthPanelState extends State<_GrowthPanel> {
   Widget build(BuildContext context) {
     final h = widget.c.history;
     final pts = _combat ? h.where((x) => x.combatPower != null).toList() : h;
-    return MaplePanel(
-      icon: '📈',
+    return AppSection(
       title: '성장 기록',
       accent: const Color(0xFF4F8EDC),
-      trailing: MapleBadge('${h.length}일'),
+      trailing: CountBadge('${h.length}일'),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -181,7 +179,7 @@ class _GrowthPanelState extends State<_GrowthPanel> {
             dates: [for (final p in pts) p.date],
             values: [for (final p in pts) _combat ? p.combatPower!.toDouble() : p.levelProgress],
             format: _combat ? koreanNumber : (v) => 'Lv.${v.toStringAsFixed(2)}',
-            color: _combat ? const Color(0xFFE53935) : Maple.orange,
+            color: _combat ? const Color(0xFFE53935) : Ui.accent,
           ),
           if (pts.length >= 2) _summary(pts),
           const SizedBox(height: 8),
@@ -235,15 +233,14 @@ class _GoalsPanel extends StatelessWidget {
         for (final goal in g.goals)
           if (goal.autoCharId == c.id) (g, goal),
     ];
-    return MaplePanel(
-      icon: '⭐',
+    return AppSection(
       title: '스펙업 목표',
       accent: const Color(0xFF9C6ADE),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (linked.isEmpty)
-            const MapleEmpty('목표를 만들면 현재값이 캐릭터 정보로 자동 갱신돼요')
+            const EmptyHint('목표를 만들면 현재값이 캐릭터 정보로 자동 갱신돼요')
           else
             ...withDividers(linked.map((e) => GoalTile(game: e.$1, goal: e.$2))),
           Padding(
@@ -373,8 +370,7 @@ class _StatPanelState extends State<_StatPanel> {
         (s['stat_name'] as String, '${s['stat_value']}'),
     ];
     final shown = _all ? list : list.where((e) => _main.contains(e.$1)).toList();
-    return MaplePanel(
-      icon: '📊',
+    return AppSection(
       title: '스탯',
       accent: const Color(0xFFE8833A),
       trailing: stat == null
@@ -382,7 +378,7 @@ class _StatPanelState extends State<_StatPanel> {
           : IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: _all ? '주요 스탯만' : '전체 보기',
-              icon: Icon(_all ? Icons.unfold_less : Icons.unfold_more, color: Colors.white),
+              icon: Icon(_all ? Icons.unfold_less : Icons.unfold_more, color: Ui.subtext),
               onPressed: () => setState(() => _all = !_all),
             ),
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
@@ -401,12 +397,12 @@ class _StatPanelState extends State<_StatPanel> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Maple.creamLight,
+                      color: Ui.field,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Maple.brownSoft, width: 1.5),
+                      border: Border.all(color: Ui.line, width: 1.5),
                     ),
                     child: Text.rich(TextSpan(children: [
-                      TextSpan(text: '$k ', style: const TextStyle(color: Maple.brownMid, fontSize: 13)),
+                      TextSpan(text: '$k ', style: const TextStyle(color: Ui.subtext, fontSize: 13)),
                       TextSpan(
                         text: k == '전투력' ? koreanNumber(num.tryParse(v) ?? 0) : _fmt(v),
                         style: const TextStyle(fontSize: 15),
@@ -438,8 +434,7 @@ class _EquipPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final eq = maple.equipmentCache[c.id];
     final items = (eq?['item_equipment'] as List? ?? []).cast<Map<String, dynamic>>();
-    return MaplePanel(
-      icon: '🗡️',
+    return AppSection(
       title: '장비',
       accent: const Color(0xFF6D4C41),
       trailing: eq == null
@@ -447,7 +442,7 @@ class _EquipPanel extends StatelessWidget {
           : IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: '다시 불러오기',
-              icon: const Icon(Icons.refresh, color: Colors.white),
+              icon: const Icon(Icons.refresh, color: Ui.subtext),
               onPressed: () => run(() => maple.equipment(c, force: true)),
             ),
       child: eq == null
@@ -461,7 +456,7 @@ class _EquipPanel extends StatelessWidget {
               ),
             )
           : items.isEmpty
-              ? const MapleEmpty('장착한 장비가 없어요')
+              ? const EmptyHint('장착한 장비가 없어요')
               : Column(children: withDividers(items.map((i) => _ItemTile(i)))),
     );
   }
@@ -477,7 +472,7 @@ class _ItemTile extends StatelessWidget {
         '에픽' => const Color(0xFF9C5FD6),
         '유니크' => const Color(0xFFF2B01E),
         '레전드리' => const Color(0xFF6BBF3B),
-        _ => Maple.brownSoft,
+        _ => Ui.line,
       };
 
   @override
@@ -497,7 +492,7 @@ class _ItemTile extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: Maple.creamLight,
+          color: Ui.field,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: gradeColor(grade), width: 2),
         ),
@@ -510,7 +505,7 @@ class _ItemTile extends StatelessWidget {
           if (star > 0) '★$star',
           ?grade,
         ].join(' · '),
-        style: TextStyle(color: star >= 22 ? const Color(0xFFD84315) : Maple.brownMid, fontSize: 12),
+        style: TextStyle(color: star >= 22 ? const Color(0xFFD84315) : Ui.subtext, fontSize: 12),
       ),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
@@ -525,7 +520,59 @@ class _ItemTile extends StatelessWidget {
           for (final l in add) Text('  $l', style: const TextStyle(fontSize: 13)),
         ],
         if (pot.isEmpty && add.isEmpty)
-          const Text('잠재능력 없음', style: TextStyle(color: Maple.brownMid, fontSize: 13)),
+          const Text('잠재능력 없음', style: TextStyle(color: Ui.subtext, fontSize: 13)),
+      ],
+    );
+  }
+}
+
+/// 넥슨 API 호출 오류를 스낵바로 보여준다.
+Future<void> runNexon(BuildContext context, Future<void> Function() f) async {
+  try {
+    await f();
+  } on NexonApiException catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+}
+
+/// 메이플 탭에서 쓰는 성장 기록 섹션
+class CharacterGrowthSection extends StatelessWidget {
+  const CharacterGrowthSection(this.c, {super.key});
+
+  final MapleCharacter c;
+
+  @override
+  Widget build(BuildContext context) =>
+      _GrowthPanel(c, maple: MapleScope.of(context)!, run: (f) => runNexon(context, f));
+}
+
+/// 메이플 탭에서 쓰는 캐릭터 연결 목표 섹션
+class CharacterGoalsSection extends StatelessWidget {
+  const CharacterGoalsSection(this.c, {super.key});
+
+  final MapleCharacter c;
+
+  @override
+  Widget build(BuildContext context) => _GoalsPanel(c);
+}
+
+/// 메이플 탭에서 쓰는 스탯 + 장비 섹션
+class CharacterGearSection extends StatelessWidget {
+  const CharacterGearSection(this.c, {super.key});
+
+  final MapleCharacter c;
+
+  @override
+  Widget build(BuildContext context) {
+    final maple = MapleScope.of(context)!;
+    Future<void> run(Future<void> Function() f) => runNexon(context, f);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StatPanel(c, maple: maple, run: run),
+        _EquipPanel(c, maple: maple, run: run),
       ],
     );
   }

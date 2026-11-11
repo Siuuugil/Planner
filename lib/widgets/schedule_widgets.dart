@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/schedule.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 
 class ScheduleTile extends StatelessWidget {
   const ScheduleTile({super.key, required this.schedule, this.showDate = false});
@@ -24,7 +24,7 @@ class ScheduleTile extends StatelessWidget {
         : '';
 
     return ListTile(
-      leading: SlotCheck(
+      leading: CheckCircle(
         value: schedule.done,
         onChanged: (v) {
           schedule.done = v;
@@ -34,7 +34,7 @@ class ScheduleTile extends StatelessWidget {
       title: Text(
         schedule.title,
         style: schedule.done
-            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Maple.brownMid)
+            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
             : null,
       ),
       subtitle: Text(

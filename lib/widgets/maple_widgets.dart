@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../maple/maple_service.dart';
 import '../maple/nexon_api.dart';
 import '../models/maple_character.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 
 /// 85321234 → '8532만', 123456789 → '1억 2345만'
 String koreanNumber(num v) {
@@ -58,9 +58,9 @@ class CharacterRow extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: Maple.creamLight,
+                color: Ui.field,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Maple.brownMid, width: 1.5),
+                border: Border.all(color: Ui.subtext, width: 1.5),
               ),
               child: NexonImage(c.image, size: 64),
             ),
@@ -77,7 +77,7 @@ class CharacterRow extends StatelessWidget {
                             style: const TextStyle(fontSize: 18)),
                       ),
                       const SizedBox(width: 6),
-                      Text('Lv.${c.level}', style: const TextStyle(color: Maple.orange, fontSize: 16)),
+                      Text('Lv.${c.level}', style: const TextStyle(color: Ui.accent, fontSize: 16)),
                       if (busy) ...[
                         const SizedBox(width: 8),
                         const SizedBox(
@@ -86,7 +86,7 @@ class CharacterRow extends StatelessWidget {
                     ],
                   ),
                   Text('${c.world} · ${c.job}',
-                      style: const TextStyle(color: Maple.brownMid, fontSize: 13)),
+                      style: const TextStyle(color: Ui.subtext, fontSize: 13)),
                   const SizedBox(height: 4),
                   GaugeBar(value: c.expRate / 100, height: 14, label: 'EXP ${c.expRate.toStringAsFixed(3)}%'),
                   if (c.combatPower != null) ...[
@@ -182,9 +182,9 @@ class _SearchDialogState extends State<_SearchDialog> {
             if (_found != null)
               Container(
                 decoration: BoxDecoration(
-                  color: Maple.creamLight,
+                  color: Ui.field,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Maple.brownMid, width: 1.5),
+                  border: Border.all(color: Ui.subtext, width: 1.5),
                 ),
                 child: CharacterRow(character: _found!.character),
               ),

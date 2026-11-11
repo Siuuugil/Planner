@@ -62,12 +62,15 @@ void main() {
     final store = await AppStore.open();
     await tester.pumpWidget(MyPlannerApp(store: store));
 
-    expect(find.text('오늘 일정'), findsOneWidget);
-    await tester.tap(find.text('업무'));
+    expect(find.text('지금 할 일'), findsOneWidget);
+    await tester.tap(find.text('할 일').last);
     await tester.pumpAndSettle();
     expect(find.text('할 일이 없어요'), findsOneWidget);
-    await tester.tap(find.text('게임'));
+    await tester.tap(find.text('메이플').last);
     await tester.pumpAndSettle();
-    expect(find.text('하고 있는 게임을 추가해 보세요'), findsOneWidget);
+    expect(find.text('일일 숙제'), findsOneWidget);
+    await tester.tap(find.text('결정석'));
+    await tester.pumpAndSettle();
+    expect(find.text('보스 수확 등록하기'), findsOneWidget);
   });
 }

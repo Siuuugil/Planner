@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/game.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 import '../screens/crystal_screen.dart';
 import 'maple_widgets.dart';
 
@@ -41,7 +41,7 @@ class ChoreTile extends StatelessWidget {
       title: Text(
         chore.title,
         style: done
-            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Maple.brownMid)
+            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
             : null,
       ),
       subtitle: Text(chore.isBoss
@@ -102,7 +102,7 @@ class GoalTile extends StatelessWidget {
                   ),
                 ),
                 if (deadline != null)
-                  Text(deadline, style: const TextStyle(color: Maple.brownMid, fontSize: 13)),
+                  Text(deadline, style: const TextStyle(color: Ui.subtext, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 6),
@@ -114,7 +114,7 @@ class GoalTile extends StatelessWidget {
                 if (goal.autoCharId != null) '🔗 캐릭터 자동 갱신',
                 if (goal.autoMetric == 'crystal') '💎 결정석 자동 누적',
               ].join('  ·  '),
-              style: const TextStyle(color: Maple.brownMid, fontSize: 13),
+              style: const TextStyle(color: Ui.subtext, fontSize: 13),
             ),
           ],
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'maple.dart';
+import 'kit.dart';
 
 /// 날짜별 값 꺾은선 그래프.
 class GrowthChart extends StatelessWidget {
@@ -9,7 +9,7 @@ class GrowthChart extends StatelessWidget {
     required this.dates,
     required this.values,
     required this.format,
-    this.color = Maple.orange,
+    this.color = Ui.accent,
     this.height = 180,
   });
 
@@ -29,7 +29,7 @@ class GrowthChart extends StatelessWidget {
           child: Text(
             values.isEmpty ? '기록이 없어요' : '기록이 하루치뿐이에요. 갱신하거나 지난 기록을 불러오세요.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Maple.brownMid),
+            style: const TextStyle(color: Ui.subtext),
           ),
         ),
       );
@@ -55,7 +55,7 @@ class _ChartPainter extends CustomPainter {
   TextPainter _text(String s, double size, Color c) => TextPainter(
         text: TextSpan(
           text: s,
-          style: TextStyle(fontFamily: Maple.font, fontSize: size, color: c),
+          style: TextStyle(fontSize: size, color: c),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -82,7 +82,7 @@ class _ChartPainter extends CustomPainter {
 
     // 가이드 선
     final grid = Paint()
-      ..color = Maple.brownSoft
+      ..color = Ui.line
       ..strokeWidth = 1;
     for (var k = 0; k <= 3; k++) {
       final y = top + h * k / 3;
@@ -112,7 +112,7 @@ class _ChartPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = Maple.brown
+        ..color = Ui.text
         ..style = PaintingStyle.stroke
         ..strokeWidth = 5
         ..strokeJoin = StrokeJoin.round
@@ -131,22 +131,22 @@ class _ChartPainter extends CustomPainter {
     // 점 (많으면 생략)
     if (values.length <= 31) {
       for (var i = 0; i < values.length; i++) {
-        canvas.drawCircle(pt(i), 4, Paint()..color = Maple.brown);
+        canvas.drawCircle(pt(i), 4, Paint()..color = Ui.text);
         canvas.drawCircle(pt(i), 2.6, Paint()..color = Colors.white);
       }
     }
 
     // 처음·마지막 값
-    final first = _text(format(values.first), 12, Maple.brownMid);
+    final first = _text(format(values.first), 12, Ui.subtext);
     first.paint(canvas, Offset(left, (pt(0).dy - 18).clamp(0, size.height - 14)));
-    final last = _text(format(values.last), 13, Maple.brown);
+    final last = _text(format(values.last), 13, Ui.text);
     last.paint(canvas, Offset(left + w - last.width, (pt(values.length - 1).dy - 20).clamp(0, size.height - 14)));
 
     // 날짜
     String md(String d) => '${int.parse(d.substring(5, 7))}/${int.parse(d.substring(8, 10))}';
-    final d0 = _text(md(dates.first), 11, Maple.brownMid);
+    final d0 = _text(md(dates.first), 11, Ui.subtext);
     d0.paint(canvas, Offset(left, size.height - 15));
-    final d1 = _text(md(dates.last), 11, Maple.brownMid);
+    final d1 = _text(md(dates.last), 11, Ui.subtext);
     d1.paint(canvas, Offset(left + w - d1.width, size.height - 15));
   }
 

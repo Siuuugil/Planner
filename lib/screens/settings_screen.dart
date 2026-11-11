@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../maple/maple_service.dart';
 import '../notify/notify_service.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -13,16 +13,15 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final notify = NotifyScope.of(context);
     final maple = MapleScope.of(context);
-    return MapleScaffold(
+    return AppScaffold(
       title: '설정',
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           if (notify == null)
-            const MaplePanel(
-              icon: '🔔',
+            const AppSection(
               title: '알림',
-              child: MapleEmpty('이 기기에서는 알림을 쓸 수 없어요'),
+              child: EmptyHint('이 기기에서는 알림을 쓸 수 없어요'),
             )
           else ...[
             _NotifyPanel(notify),
@@ -52,15 +51,14 @@ class _NotifyPanel extends StatelessWidget {
             value: options.contains(value) ? value : options.first,
             underline: const SizedBox(),
             borderRadius: BorderRadius.circular(10),
-            dropdownColor: Maple.cream,
-            style: const TextStyle(fontFamily: Maple.font, fontSize: 16, color: Maple.brown),
+            dropdownColor: Ui.card,
+            style: const TextStyle(fontSize: 16, color: Ui.text),
             items: [for (final o in options) DropdownMenuItem(value: o, child: Text(fmt(o)))],
             onChanged: s.enabled ? (v) => onChanged(v!) : null,
           ),
         );
 
-    return MaplePanel(
-      icon: '🔔',
+    return AppSection(
       title: '알림',
       child: Column(
         children: withDividers([
@@ -122,12 +120,11 @@ class _UpcomingPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final list = n.upcoming.take(8).toList();
-    return MaplePanel(
-      icon: '⏰',
+    return AppSection(
       title: '예정된 알림',
-      trailing: MapleBadge('${n.upcoming.length}'),
+      trailing: CountBadge('${n.upcoming.length}'),
       child: list.isEmpty
-          ? const MapleEmpty('7일 안에 예정된 알림이 없어요')
+          ? const EmptyHint('7일 안에 예정된 알림이 없어요')
           : Column(
               children: withDividers(list.map((r) => ListTile(
                     dense: true,
@@ -161,11 +158,10 @@ class _NexonKeyPanelState extends State<_NexonKeyPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return MaplePanel(
-      icon: '🔑',
+    return AppSection(
       title: '넥슨 Open API 키',
-      accent: Maple.leaf,
-      trailing: widget.maple.hasKey ? const MapleBadge('연결됨') : null,
+      accent: Ui.green,
+      trailing: widget.maple.hasKey ? const CountBadge('연결됨') : null,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -175,7 +171,7 @@ class _NexonKeyPanelState extends State<_NexonKeyPanel> {
             '2. 애플리케이션 등록 → 메이플스토리 API 선택\n'
             '3. 발급된 API 키를 아래에 붙여넣기\n'
             '키는 이 기기에만 저장되고 동기화되지 않아요. 기기마다 한 번씩 넣어주세요.',
-            style: TextStyle(color: Maple.brownMid, fontSize: 13),
+            style: TextStyle(color: Ui.subtext, fontSize: 13),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -220,7 +216,7 @@ class _NexonKeyPanelState extends State<_NexonKeyPanel> {
               child: Text(
                 '웹 버전은 브라우저 보안 정책 때문에 넥슨 API 호출이 막힐 수 있어요. '
                 '그럴 땐 PC·폰 앱에서 갱신하면 웹에도 동기화돼요.',
-                style: TextStyle(color: Maple.brownMid, fontSize: 12),
+                style: TextStyle(color: Ui.subtext, fontSize: 12),
               ),
             ),
         ],

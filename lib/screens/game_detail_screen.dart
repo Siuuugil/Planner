@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/store_scope.dart';
 import '../models/game.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/schedule_widgets.dart';
 
@@ -15,7 +15,7 @@ class GameDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final game = store.gameById(gameId);
-    if (game == null) return const MapleScaffold(title: '', body: SizedBox());
+    if (game == null) return const AppScaffold(title: '', body: SizedBox());
 
     final now = DateTime.now();
     final daily = game.chores.where((c) => c.period == ChorePeriod.daily).toList();
@@ -28,7 +28,7 @@ class GameDetailScreen extends StatelessWidget {
         .toList()
       ..sort((a, b) => a.start.compareTo(b.start));
 
-    return MapleScaffold(
+    return AppScaffold(
       title: game.name,
       actions: [
         IconButton(
@@ -61,57 +61,53 @@ class GameDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          MaplePanel(
-            icon: '⭐',
+          AppSection(
             title: '스펙업 목표',
             accent: const Color(0xFF9C6ADE),
-            trailing: MapleAddButton(
+            trailing: AddButton(
               tooltip: '목표 추가',
               onPressed: () => showGoalEditor(context, game),
             ),
             child: game.goals.isEmpty
-                ? const MapleEmpty('예: 아이템 레벨 1640 → 1680')
+                ? const EmptyHint('예: 아이템 레벨 1640 → 1680')
                 : Column(children: withDividers(game.goals.map((g) => GoalTile(game: game, goal: g)))),
           ),
-          MaplePanel(
-            icon: '⚔️',
+          AppSection(
             title: '일일 퀘스트 · 매일 ${game.resetHour}시',
             accent: const Color(0xFFE8833A),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (daily.isNotEmpty) MapleBadge('${doneOf(daily)}/${daily.length}'),
-              MapleAddButton(
+              if (daily.isNotEmpty) CountBadge('${doneOf(daily)}/${daily.length}'),
+              AddButton(
                 tooltip: '일일 숙제 추가',
                 onPressed: () => showChoreEditor(context, game),
               ),
             ]),
             child: daily.isEmpty
-                ? const MapleEmpty('예: 일일 던전, 몬스터 파크')
+                ? const EmptyHint('예: 일일 던전, 몬스터 파크')
                 : Column(children: withDividers(daily.map((c) => ChoreTile(game: game, chore: c)))),
           ),
-          MaplePanel(
-            icon: '🛡️',
+          AppSection(
             title: '주간 퀘스트 · ${weekdayNames[game.weeklyResetWeekday - 1]}요일 ${game.resetHour}시',
             accent: const Color(0xFF4F8EDC),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (weekly.isNotEmpty) MapleBadge('${doneOf(weekly)}/${weekly.length}'),
-              MapleAddButton(
+              if (weekly.isNotEmpty) CountBadge('${doneOf(weekly)}/${weekly.length}'),
+              AddButton(
                 tooltip: '주간 숙제 추가',
                 onPressed: () => showChoreEditor(context, game, period: ChorePeriod.weekly),
               ),
             ]),
             child: weekly.isEmpty
-                ? const MapleEmpty('예: 주간 보스, 길드 컨텐츠')
+                ? const EmptyHint('예: 주간 보스, 길드 컨텐츠')
                 : Column(children: withDividers(weekly.map((c) => ChoreTile(game: game, chore: c)))),
           ),
-          MaplePanel(
-            icon: '📅',
+          AppSection(
             title: '다가오는 일정',
-            trailing: MapleAddButton(
+            trailing: AddButton(
               tooltip: '일정 추가',
               onPressed: () => showScheduleEditor(context, gameId: game.id),
             ),
             child: upcoming.isEmpty
-                ? const MapleEmpty('예: 레이드, 이벤트 마감')
+                ? const EmptyHint('예: 레이드, 이벤트 마감')
                 : Column(
                     children: withDividers(
                         upcoming.map((s) => ScheduleTile(schedule: s, showDate: true)))),

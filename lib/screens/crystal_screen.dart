@@ -7,57 +7,9 @@ import 'package:intl/intl.dart';
 import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/game.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/maple_widgets.dart';
-
-/// 이번 주 결정석 요약 (오늘·게임 탭에 넣는 작은 패널)
-class CrystalSummaryPanel extends StatelessWidget {
-  const CrystalSummaryPanel({super.key, this.showWhenEmpty = false});
-
-  /// 보스 숙제가 없어도 (시작 안내용으로) 보여줄지
-  final bool showWhenEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    final store = StoreScope.of(context);
-    final g = store.crystalGame();
-    final now = DateTime.now();
-    final boss = g?.chores.where((c) => c.isBoss).toList() ?? [];
-    if (boss.isEmpty && !showWhenEmpty) return const SizedBox.shrink();
-
-    final expected = boss.fold<int>(0, (a, c) => a + g!.bossIncome(c));
-    final done = boss.where((c) => g!.isChoreDone(c, now)).toList();
-    final earned = done.fold<int>(0, (a, c) => a + g!.bossIncome(c));
-
-    return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CrystalScreen())),
-      child: MaplePanel(
-        icon: '💎',
-        title: '이번 주 결정석',
-        accent: const Color(0xFF2FA4C7),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white),
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-        child: boss.isEmpty
-            ? const Text('보스 수확을 등록하면 주간 메소 수익을 계산해 줘요', style: TextStyle(color: Maple.brownMid))
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  GaugeBar(
-                    value: expected == 0 ? 0 : earned / expected,
-                    kind: GaugeKind.mp,
-                    height: 20,
-                    label: '${koreanNumber(earned)} / ${koreanNumber(expected)} 메소',
-                  ),
-                  const SizedBox(height: 6),
-                  Text('보스 ${done.length}/${boss.length} 처치 · 남은 수익 ${koreanNumber(expected - earned)}',
-                      style: const TextStyle(fontSize: 14)),
-                ],
-              ),
-      ),
-    );
-  }
-}
 
 class CrystalScreen extends StatelessWidget {
   const CrystalScreen({super.key});
@@ -68,7 +20,7 @@ class CrystalScreen extends StatelessWidget {
     final g = store.crystalGame() ?? store.mapleGame();
     final now = DateTime.now();
 
-    return MapleScaffold(
+    return AppScaffold(
       title: '💎 결정석 수익',
       floatingActionButton: FloatingActionButton(
         tooltip: '보스 수확 추가',
@@ -92,8 +44,7 @@ class CrystalScreen extends StatelessWidget {
     final boss = g.chores.where((c) => c.isBoss).toList();
     if (boss.isEmpty) {
       return [
-        MaplePanel(
-          icon: '⚔️',
+        AppSection(
           title: '주간 보스 수확',
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -102,7 +53,7 @@ class CrystalScreen extends StatelessWidget {
               children: [
                 Text(
                   '+ 를 눌러 매주 잡는 보스를 등록하세요.\n가격은 $bossPriceTableDate 기준 가격표가 자동으로 들어가요.',
-                  style: const TextStyle(color: Maple.brownMid),
+                  style: const TextStyle(color: Ui.subtext),
                 ),
               ],
             ),
@@ -117,11 +68,10 @@ class CrystalScreen extends StatelessWidget {
     final now = DateTime.now();
     return [
       for (final e in byChar.entries)
-        MaplePanel(
-          icon: '⚔️',
+        AppSection(
           title: e.key,
           accent: const Color(0xFFE8833A),
-          trailing: MapleBadge(
+          trailing: CountBadge(
             '${e.value.where((c) => g.isChoreDone(c, now)).length}/${e.value.length}'
             '${e.value.length > weeklyCrystalLimit ? ' ⚠️' : ''}',
           ),
@@ -160,8 +110,7 @@ class _WeekPanel extends StatelessWidget {
     final reset = DateTime(start.year, start.month, start.day + 7, g.resetHour);
     final left = reset.difference(now);
 
-    return MaplePanel(
-      icon: '💎',
+    return AppSection(
       title: '이번 주',
       accent: const Color(0xFF2FA4C7),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -169,7 +118,7 @@ class _WeekPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(koreanNumber(earned), style: const TextStyle(fontSize: 30, color: Color(0xFF1E62D0))),
-          Text('예상 ${koreanNumber(expected)} 메소', style: const TextStyle(color: Maple.brownMid)),
+          Text('예상 ${koreanNumber(expected)} 메소', style: const TextStyle(color: Ui.subtext)),
           const SizedBox(height: 8),
           GaugeBar(
             value: expected == 0 ? 0 : earned / expected,
@@ -181,7 +130,7 @@ class _WeekPanel extends StatelessWidget {
           Text(
             '${weekdayNames[g.weeklyResetWeekday - 1]}요일 ${g.resetHour}시 초기화까지 '
             '${left.inDays}일 ${left.inHours % 24}시간',
-            style: const TextStyle(fontSize: 13, color: Maple.brownMid),
+            style: const TextStyle(fontSize: 13, color: Ui.subtext),
           ),
         ],
       ),
@@ -212,8 +161,7 @@ class _HistoryPanel extends StatelessWidget {
         .fold<int>(0, (a, e) => a + e.value);
     final maxV = values.fold<int>(1, math.max);
 
-    return MaplePanel(
-      icon: '📊',
+    return AppSection(
       title: '주간 수익 기록',
       accent: const Color(0xFF4F8EDC),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -240,17 +188,17 @@ class _HistoryPanel extends StatelessWidget {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: i == weeks.length - 1
-                                    ? Maple.exp
+                                    ? const [Ui.accent, Ui.accent]
                                     : const [Color(0xFF9BE3F5), Color(0xFF2FA4C7)],
                               ),
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                              border: Border.all(color: Maple.brown, width: 1.2),
+                              border: Border.all(color: Ui.text, width: 1.2),
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             i % 3 == 2 || i == weeks.length - 1 ? DateFormat('M/d').format(weeks[i]) : '',
-                            style: const TextStyle(fontSize: 10, color: Maple.brownMid),
+                            style: const TextStyle(fontSize: 10, color: Ui.subtext),
                           ),
                         ],
                       ),
@@ -277,12 +225,12 @@ class _HistoryPanel extends StatelessWidget {
   static Widget _chip(String k, String v) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: Maple.creamLight,
+          color: Ui.field,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Maple.brownSoft, width: 1.5),
+          border: Border.all(color: Ui.line, width: 1.5),
         ),
         child: Text.rich(TextSpan(children: [
-          TextSpan(text: '$k ', style: const TextStyle(color: Maple.brownMid, fontSize: 13)),
+          TextSpan(text: '$k ', style: const TextStyle(color: Ui.subtext, fontSize: 13)),
           TextSpan(text: v, style: const TextStyle(fontSize: 15)),
         ])),
       );
@@ -301,13 +249,12 @@ class _GoalPanel extends StatelessWidget {
     final boss = g.chores.where((c) => c.isBoss);
     final weekly = boss.fold<int>(0, (a, c) => a + g.bossIncome(c));
 
-    return MaplePanel(
-      icon: '🎯',
+    return AppSection(
       title: '메소 목표',
       accent: const Color(0xFF9C6ADE),
-      trailing: MapleAddButton(tooltip: '메소 목표 추가', onPressed: () => _add(context)),
+      trailing: AddButton(tooltip: '메소 목표 추가', onPressed: () => _add(context)),
       child: goals.isEmpty
-          ? const MapleEmpty('예: 아케인 무기 사기 위해 50억 모으기 → 결정석 수익으로 자동 진행')
+          ? const EmptyHint('예: 아케인 무기 사기 위해 50억 모으기 → 결정석 수익으로 자동 진행')
           : Column(
               children: withDividers(goals.map((goal) {
                 final left = goal.target - goal.current;
@@ -358,7 +305,7 @@ class _GoalPanel extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               const Text('이번 주부터 들어오는 결정석 수익이 자동으로 쌓여요',
-                  style: TextStyle(color: Maple.brownMid, fontSize: 13)),
+                  style: TextStyle(color: Ui.subtext, fontSize: 13)),
             ],
           ),
         ),
@@ -406,15 +353,14 @@ class _PricePanelState extends State<_PricePanel> {
     final priced = g.bosses.where((b) => b.price > 0).length;
     final list = [...g.bosses]..sort((a, b) => b.price.compareTo(a.price));
 
-    return MaplePanel(
-      icon: '🏷️',
+    return AppSection(
       title: '결정석 가격표',
       accent: const Color(0xFF6D4C41),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        MapleBadge('$priced/${g.bosses.length}'),
+        CountBadge('$priced/${g.bosses.length}'),
         IconButton(
           visualDensity: VisualDensity.compact,
-          icon: Icon(_open ? Icons.expand_less : Icons.expand_more, color: Colors.white),
+          icon: Icon(_open ? Icons.expand_less : Icons.expand_more, color: Ui.subtext),
           onPressed: () => setState(() => _open = !_open),
         ),
       ]),
@@ -422,7 +368,7 @@ class _PricePanelState extends State<_PricePanel> {
           ? Padding(
               padding: const EdgeInsets.all(10),
               child: Text('가격이 바뀌면 여기서 수정하세요 (펼치기 ▼)',
-                  style: const TextStyle(color: Maple.brownMid, fontSize: 13)),
+                  style: const TextStyle(color: Ui.subtext, fontSize: 13)),
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -431,7 +377,7 @@ class _PricePanelState extends State<_PricePanel> {
                   padding: EdgeInsets.fromLTRB(14, 8, 14, 4),
                   child: Text(
                     '기본값은 $bossPriceTableDate 기준이에요. 패치로 바뀌면 보스를 눌러 고치세요.',
-                    style: TextStyle(color: Maple.brownMid, fontSize: 13),
+                    style: TextStyle(color: Ui.subtext, fontSize: 13),
                   ),
                 ),
                 ...withDividers(list.map((b) => ListTile(
@@ -441,7 +387,7 @@ class _PricePanelState extends State<_PricePanel> {
                         b.price == 0 ? '가격 입력' : koreanNumber(b.price),
                         style: TextStyle(
                           fontSize: 15,
-                          color: b.price == 0 ? Theme.of(context).colorScheme.error : Maple.brown,
+                          color: b.price == 0 ? Theme.of(context).colorScheme.error : Ui.text,
                         ),
                       ),
                       onTap: () => _edit(context, store, b),
@@ -703,4 +649,35 @@ class _BossChoreEditorState extends State<_BossChoreEditor> {
       ],
     );
   }
+}
+
+/// 메이플 탭의 결정석 내용 (이번 주, 캐릭터별 보스, 기록, 가격표)
+class CrystalBody extends StatelessWidget {
+  const CrystalBody(this.g, {super.key});
+
+  final Game g;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _WeekPanel(g, now),
+        ...const CrystalScreen()._routinePanels(context, g),
+        _HistoryPanel(g, now),
+        _PricePanel(g),
+      ],
+    );
+  }
+}
+
+/// 메이플 탭의 메소 목표 섹션
+class CrystalGoalSection extends StatelessWidget {
+  const CrystalGoalSection(this.g, {super.key});
+
+  final Game g;
+
+  @override
+  Widget build(BuildContext context) => _GoalPanel(g, DateTime.now());
 }

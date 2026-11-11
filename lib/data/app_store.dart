@@ -314,6 +314,14 @@ class AppStore extends ChangeNotifier {
     commit();
   }
 
+  /// '메이플'이 들어간 게임 (없으면 null)
+  Game? findMapleGame() {
+    for (final g in games) {
+      if (g.name.contains('메이플')) return g;
+    }
+    return null;
+  }
+
   /// '메이플'이 들어간 게임 (없으면 만들어서 추가)
   Game mapleGame() {
     for (final g in games) {

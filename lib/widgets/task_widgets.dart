@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/task.dart';
-import '../ui/maple.dart';
+import '../ui/kit.dart';
 
 String dueLabel(DateTime due) {
   final now = DateTime.now();
@@ -36,7 +36,7 @@ class TaskTile extends StatelessWidget {
     ].join(' · ');
 
     return ListTile(
-      leading: SlotCheck(
+      leading: CheckCircle(
         value: task.done,
         onChanged: (v) {
           task.done = v;
@@ -46,7 +46,7 @@ class TaskTile extends StatelessWidget {
       title: Text(
         task.title,
         style: task.done
-            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Maple.brownMid)
+            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
             : null,
       ),
       subtitle: subtitle.isEmpty

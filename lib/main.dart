@@ -10,7 +10,7 @@ import 'data/sync_service.dart';
 import 'maple/maple_service.dart';
 import 'notify/notify_service.dart';
 import 'screens/home_shell.dart';
-import 'ui/maple.dart';
+import 'ui/kit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +46,7 @@ class MyPlannerApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        theme: mapleTheme(),
+        theme: appTheme(),
         home: const HomeShell(),
       ),
     );

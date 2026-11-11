@@ -43,10 +43,14 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      # 매번 같은 키로 서명해야 폰에서 덮어쓰기 업데이트가 된다.
-      - run: mkdir -p ~/.android && cp android/ci-debug.keystore ~/.android/debug.keystore
       - run: flutter build apk --release --build-number=${{ github.run_number }}
       - run: mv build/app/outputs/flutter-apk/app-release.apk MyPlanner.apk
+      # 서명 키가 바뀌면 폰에서 업데이트 설치가 막히므로, 고정 키로 서명됐는지 확인한다.
+      - name: 서명 키 확인
+        run: |
+          signer=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
+          "$signer" verify --print-certs MyPlanner.apk | tee certs.txt
+          grep -qi "SHA-256 digest: 050b648a284a5ace74ba2c8142523daa6f28ab37d3b130c5976430ef3f263427" certs.txt
       - uses: actions/upload-artifact@v4
         with:
           name: android

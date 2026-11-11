@@ -31,11 +31,20 @@ android {
         versionName = flutter.versionName
     }
 
+    // 모든 릴리스 빌드를 레포의 고정 키로 서명해야 폰에서 덮어쓰기 업데이트가 된다.
+    // (키를 지정하지 않으면 빌드 머신마다 랜덤 디버그 키가 생겨 "패키지 충돌"로 설치 실패)
+    signingConfigs {
+        create("shared") {
+            storeFile = file("../ci-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
 }

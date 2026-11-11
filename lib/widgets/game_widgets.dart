@@ -5,6 +5,7 @@ import '../data/app_store.dart';
 import '../data/store_scope.dart';
 import '../models/game.dart';
 import '../ui/maple.dart';
+import 'maple_widgets.dart';
 
 const gameColors = [
   0xFF5C6BC0,
@@ -71,6 +72,7 @@ class GoalTile extends StatelessWidget {
     final deadline = goal.deadline == null
         ? null
         : 'D${_dday(goal.deadline!)} (${DateFormat('M/d').format(goal.deadline!)})';
+    final String Function(double) fmt = goal.autoMetric == 'combat' ? koreanNumber : _num;
     return InkWell(
       onTap: () => showGoalEditor(context, game, existing: goal),
       child: Padding(
@@ -95,7 +97,10 @@ class GoalTile extends StatelessWidget {
             GaugeBar(value: goal.progress),
             const SizedBox(height: 4),
             Text(
-              '${_num(goal.start)} → ${_num(goal.current)} / ${_num(goal.target)}${goal.unit}',
+              [
+                '${fmt(goal.start)} → ${fmt(goal.current)} / ${fmt(goal.target)}${goal.unit}',
+                if (goal.autoCharId != null) '🔗 캐릭터 자동 갱신',
+              ].join('  ·  '),
               style: const TextStyle(color: Maple.brownMid, fontSize: 13),
             ),
           ],

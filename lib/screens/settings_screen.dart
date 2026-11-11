@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../maple/maple_service.dart';
 import '../notify/notify_service.dart';
 import '../ui/maple.dart';
 
@@ -11,6 +12,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final notify = NotifyScope.of(context);
+    final maple = MapleScope.of(context);
     return MapleScaffold(
       title: '설정',
       body: ListView(
@@ -26,6 +28,7 @@ class SettingsScreen extends StatelessWidget {
             _NotifyPanel(notify),
             _UpcomingPanel(notify),
           ],
+          if (maple != null) _NexonKeyPanel(maple),
         ],
       ),
     );
@@ -133,6 +136,95 @@ class _UpcomingPanel extends StatelessWidget {
                         '${DateFormat('M/d (E) HH:mm', 'ko_KR').format(r.when)} · ${r.body}'),
                   ))),
             ),
+    );
+  }
+}
+
+class _NexonKeyPanel extends StatefulWidget {
+  const _NexonKeyPanel(this.maple);
+
+  final MapleService maple;
+
+  @override
+  State<_NexonKeyPanel> createState() => _NexonKeyPanelState();
+}
+
+class _NexonKeyPanelState extends State<_NexonKeyPanel> {
+  late final _ctrl = TextEditingController(text: widget.maple.key);
+  bool _show = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaplePanel(
+      icon: '🔑',
+      title: '넥슨 Open API 키',
+      accent: Maple.leaf,
+      trailing: widget.maple.hasKey ? const MapleBadge('연결됨') : null,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '1. openapi.nexon.com 에 넥슨 계정으로 로그인\n'
+            '2. 애플리케이션 등록 → 메이플스토리 API 선택\n'
+            '3. 발급된 API 키를 아래에 붙여넣기\n'
+            '키는 이 기기에만 저장되고 동기화되지 않아요. 기기마다 한 번씩 넣어주세요.',
+            style: TextStyle(color: Maple.brownMid, fontSize: 13),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _ctrl,
+            obscureText: !_show,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(
+              labelText: 'API 키',
+              suffixIcon: IconButton(
+                icon: Icon(_show ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _show = !_show),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilledButton(
+                onPressed: () {
+                  widget.maple.setKey(_ctrl.text);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(_ctrl.text.trim().isEmpty ? 'API 키를 지웠어요' : 'API 키를 저장했어요')),
+                  );
+                },
+                child: const Text('저장'),
+              ),
+              if (widget.maple.hasKey)
+                OutlinedButton(
+                  onPressed: () {
+                    _ctrl.clear();
+                    widget.maple.setKey('');
+                  },
+                  child: const Text('키 지우기'),
+                ),
+            ],
+          ),
+          if (kIsWeb)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                '웹 버전은 브라우저 보안 정책 때문에 넥슨 API 호출이 막힐 수 있어요. '
+                '그럴 땐 PC·폰 앱에서 갱신하면 웹에도 동기화돼요.',
+                style: TextStyle(color: Maple.brownMid, fontSize: 12),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

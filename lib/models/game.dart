@@ -41,6 +41,8 @@ class Goal {
     required this.target,
     this.unit = '',
     this.deadline,
+    this.autoCharId,
+    this.autoMetric,
   });
 
   final String id;
@@ -50,6 +52,12 @@ class Goal {
   double target;
   String unit;
   DateTime? deadline;
+
+  /// 메이플 캐릭터와 연결되면 [current]를 캐릭터 갱신 때 자동으로 채운다.
+  String? autoCharId;
+
+  /// 'level' (레벨+경험치%) 또는 'combat' (전투력)
+  String? autoMetric;
 
   double get progress {
     final span = target - start;
@@ -67,6 +75,8 @@ class Goal {
         'target': target,
         'unit': unit,
         'deadline': deadline?.toIso8601String(),
+        if (autoCharId != null) 'autoCharId': autoCharId,
+        if (autoMetric != null) 'autoMetric': autoMetric,
       };
 
   factory Goal.fromJson(Map<String, dynamic> j) => Goal(
@@ -79,6 +89,8 @@ class Goal {
         deadline: j['deadline'] == null
             ? null
             : DateTime.parse(j['deadline'] as String),
+        autoCharId: j['autoCharId'] as String?,
+        autoMetric: j['autoMetric'] as String?,
       );
 }
 

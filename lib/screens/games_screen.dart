@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../data/store_scope.dart';
+import '../maple/maple_service.dart';
 import '../models/game.dart';
 import '../ui/maple.dart';
 import '../widgets/game_widgets.dart';
+import '../widgets/maple_widgets.dart';
+import 'character_screen.dart';
 import 'game_detail_screen.dart';
+import 'settings_screen.dart';
 
 class GamesScreen extends StatelessWidget {
   const GamesScreen({super.key});
@@ -22,22 +26,19 @@ class GamesScreen extends StatelessWidget {
         label: Text('게임 추가', style: Maple.titleText(16)),
         shape: const StadiumBorder(side: BorderSide(color: Maple.brown, width: 3)),
       ),
-      body: store.games.isEmpty
-          ? ListView(
-              children: const [
-                MaplePanel(
-                  icon: '🎮',
-                  title: '캐릭터 선택',
-                  child: MapleEmpty('하고 있는 게임을 추가해 보세요'),
-                ),
-              ],
-            )
-          : ListView(
-              padding: const EdgeInsets.only(bottom: 96),
-              children: [
-                for (final g in store.games) _GameCard(game: g, now: now),
-              ],
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
+        children: [
+          const _CharactersPanel(),
+          if (store.games.isEmpty)
+            const MaplePanel(
+              icon: '🎮',
+              title: '게임',
+              child: MapleEmpty('하고 있는 게임을 추가해 보세요'),
             ),
+          for (final g in store.games) _GameCard(game: g, now: now),
+        ],
+      ),
     );
   }
 }
@@ -110,4 +111,59 @@ class _GameCard extends StatelessWidget {
           ),
         ],
       );
+}
+
+/// 넥슨 Open API로 불러온 내 메이플 캐릭터들.
+class _CharactersPanel extends StatelessWidget {
+  const _CharactersPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final maple = MapleScope.of(context);
+    if (maple == null) return const SizedBox.shrink();
+
+    void openSettings() => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        );
+
+    return MaplePanel(
+      icon: '🍁',
+      title: '내 메이플 캐릭터',
+      accent: Maple.leaf,
+      trailing: MapleAddButton(
+        tooltip: '닉네임으로 캐릭터 추가',
+        onPressed: maple.hasKey ? () => showCharacterSearch(context, maple) : openSettings,
+      ),
+      child: !maple.hasKey && store.characters.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    '넥슨 Open API 키를 넣으면 닉네임으로 내 캐릭터를 불러와서\n'
+                    '레벨·전투력 목표와 성장 그래프를 자동으로 관리할 수 있어요.',
+                    style: TextStyle(color: Maple.brownMid),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(onPressed: openSettings, child: const Text('API 키 입력하러 가기')),
+                ],
+              ),
+            )
+          : store.characters.isEmpty
+              ? const MapleEmpty('+ 를 눌러 닉네임으로 캐릭터를 추가하세요')
+              : Column(
+                  children: withDividers(store.characters.map((c) => CharacterRow(
+                        character: c,
+                        busy: maple.busy.contains(c.id),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => CharacterScreen(characterId: c.id)),
+                        ),
+                      ))),
+                ),
+    );
+  }
 }

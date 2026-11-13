@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'package:http/http.dart' as http;
 
 class NexonApiException implements Exception {
@@ -12,26 +14,38 @@ class NexonApiException implements Exception {
   String toString() => message;
 }
 
+/// 중계 서버로 보내는 함수: (경로, 쿼리, API 키) → (상태 코드, 본문)
+typedef NexonProxy = Future<(int, String)> Function(String path, Map<String, String> query, String key);
+
 /// 넥슨 Open API (메이플스토리) 최소 클라이언트.
 /// https://openapi.nexon.com — 헤더 `x-nxopen-api-key`
 class NexonApi {
-  NexonApi(this.apiKey, {http.Client? client}) : _client = client ?? http.Client();
+  NexonApi(this.apiKey, {http.Client? client, this.proxy}) : _client = client ?? http.Client();
 
   static const _base = 'https://open.api.nexon.com/maplestory/v1';
   final String apiKey;
   final http.Client _client;
 
+  /// 있으면 넥슨 대신 중계 서버로 보낸다 (웹)
+  final NexonProxy? proxy;
+
   Future<Map<String, dynamic>> _get(String path, Map<String, String> query) async {
-    final uri = Uri.parse('$_base$path').replace(queryParameters: query);
-    final http.Response res;
+    final int status;
+    final String body;
     try {
-      res = await _client.get(uri, headers: {'x-nxopen-api-key': apiKey});
+      if (proxy != null) {
+        (status, body) = await proxy!('/maplestory/v1$path', query, apiKey);
+      } else {
+        final uri = Uri.parse('$_base$path').replace(queryParameters: query);
+        final res = await _client.get(uri, headers: {'x-nxopen-api-key': apiKey});
+        status = res.statusCode;
+        body = utf8.decode(res.bodyBytes);
+      }
     } catch (e) {
-      throw NexonApiException('넥슨 API에 연결하지 못했어요. 인터넷 연결을 확인해 주세요. '
-          '(웹 버전에서는 브라우저 보안 정책으로 막힐 수 있어요)');
+      throw NexonApiException('넥슨 API에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.'
+          '${kIsWeb && proxy == null ? ' (웹은 로그인해야 넥슨 API를 쓸 수 있어요)' : ''}');
     }
-    final body = utf8.decode(res.bodyBytes);
-    if (res.statusCode == 200) return jsonDecode(body) as Map<String, dynamic>;
+    if (status == 200) return jsonDecode(body) as Map<String, dynamic>;
 
     String? code;
     String? msg;
@@ -40,7 +54,7 @@ class NexonApi {
       code = err['name'] as String?;
       msg = err['message'] as String?;
     } catch (_) {}
-    throw NexonApiException(_friendly(code, res.statusCode) ?? msg ?? '오류 (${res.statusCode})', code: code);
+    throw NexonApiException(_friendly(code, status) ?? msg ?? '오류 ($status)', code: code);
   }
 
   static String? _friendly(String? code, int status) => switch (code) {

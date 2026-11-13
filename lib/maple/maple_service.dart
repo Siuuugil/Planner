@@ -17,11 +17,14 @@ class MapleLookup {
 /// 넥슨 API 키 관리 + 캐릭터 검색·갱신·과거 기록 불러오기.
 /// API 키는 이 기기에만 저장한다 (동기화 안 함).
 class MapleService extends ChangeNotifier {
-  MapleService(this.store, this._prefs) {
+  MapleService(this.store, this._prefs, {this.proxy}) {
     _key = _prefs.getString(_prefKey) ?? '';
   }
 
   static const _prefKey = 'nexon_api_key';
+
+  /// 웹: 로그인 상태면 중계 서버를 돌려준다 (아니면 null → 넥슨 직접 호출)
+  final NexonProxy? Function()? proxy;
   final AppStore store;
   final SharedPreferences _prefs;
   late String _key;
@@ -36,8 +39,8 @@ class MapleService extends ChangeNotifier {
   bool get hasKey => _key.isNotEmpty;
   String get key => _key;
 
-  static Future<MapleService> open(AppStore store) async =>
-      MapleService(store, await SharedPreferences.getInstance());
+  static Future<MapleService> open(AppStore store, {NexonProxy? Function()? proxy}) async =>
+      MapleService(store, await SharedPreferences.getInstance(), proxy: proxy);
 
   void setKey(String k) {
     _key = k.trim();
@@ -47,7 +50,7 @@ class MapleService extends ChangeNotifier {
 
   NexonApi _api() {
     if (!hasKey) throw NexonApiException('설정에서 넥슨 Open API 키를 먼저 입력해 주세요.');
-    return NexonApi(_key);
+    return NexonApi(_key, proxy: proxy?.call());
   }
 
   /// 한국 시간 기준 날짜 'yyyy-MM-dd'

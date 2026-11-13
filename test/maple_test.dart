@@ -86,4 +86,19 @@ void main() {
     expect(koreanNumber(123456789), '1억 2345만');
     expect(koreanNumber(200000000), '2억');
   });
+
+  test('중계 서버 경로: 넥슨 경로·쿼리·키를 그대로 넘기고 오류 코드도 해석', () async {
+    final calls = <(String, Map<String, String>, String)>[];
+    final api = NexonApi('KEY', proxy: (path, query, key) async {
+      calls.add((path, query, key));
+      if (path.endsWith('/id')) return (200, '{"ocid":"abc"}');
+      return (400, '{"error":{"name":"OPENAPI00004","message":"x"}}');
+    });
+    expect(await api.ocid('단풍이'), 'abc');
+    expect(calls.single.$1, '/maplestory/v1/id');
+    expect(calls.single.$2, {'character_name': '단풍이'});
+    expect(calls.single.$3, 'KEY');
+    expect(() => api.basic('abc'),
+        throwsA(isA<NexonApiException>().having((e) => e.code, 'code', 'OPENAPI00004')));
+  });
 }

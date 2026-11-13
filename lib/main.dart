@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -20,7 +21,21 @@ Future<void> main() async {
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
   final sync = SyncService(store, Supabase.instance.client);
   final notify = await NotifyService.start(store);
-  final maple = await MapleService.open(store);
+  final supabase = Supabase.instance.client;
+  final maple = await MapleService.open(
+    store,
+    // 웹은 브라우저가 넥슨 API 직접 호출을 막아서, 로그인 상태면 Supabase 중계 함수로 보낸다
+    proxy: () => !kIsWeb || supabase.auth.currentUser == null
+        ? null
+        : (path, query, key) async {
+            final res = await supabase.functions.invoke(
+              'nexon-proxy',
+              body: {'path': path, 'query': query, 'key': key},
+            );
+            final data = res.data as Map<String, dynamic>;
+            return ((data['status'] as num).toInt(), data['body'] as String);
+          },
+  );
   runApp(MyPlannerApp(store: store, sync: sync, notify: notify, maple: maple));
   maple.refreshStale();
 }

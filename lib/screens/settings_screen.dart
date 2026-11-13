@@ -224,8 +224,8 @@ class _NexonKeyPanelState extends State<_NexonKeyPanel> {
             const Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
-                '웹 버전은 브라우저 보안 정책 때문에 넥슨 API 호출이 막힐 수 있어요. '
-                '그럴 땐 PC·폰 앱에서 갱신하면 웹에도 동기화돼요.',
+                '웹 버전은 로그인한 상태에서만 캐릭터 갱신이 돼요 (Supabase 중계 서버를 거쳐요). '
+                'API 키는 중계 서버에 저장되지 않아요.',
                 style: TextStyle(color: Ui.subtext, fontSize: 12),
               ),
             ),

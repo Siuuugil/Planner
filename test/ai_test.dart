@@ -4,6 +4,7 @@ import 'package:game_planner/ai/claude_cli.dart';
 import 'package:game_planner/ai/context.dart';
 import 'package:game_planner/data/app_store.dart';
 import 'package:game_planner/models/game.dart';
+import 'package:game_planner/models/maple_character.dart';
 import 'package:game_planner/models/schedule.dart';
 import 'package:game_planner/models/task.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -86,5 +87,40 @@ void main() {
     final hidden = plannerContext(store, now);
     expect(hidden, allOf(contains('팀회의'), contains('보고서')));
     expect(hidden, isNot(anyOf(contains('하드 윌'), contains('몬스터 파크'), contains('메이플'))));
+  });
+
+  test('하루 평균 레벨 상승: 기록 부족·하락은 null', () {
+    expect(levelPerDay([(date: '2026-11-01', progress: 270.0)]), isNull);
+    expect(levelPerDay([(date: '2026-11-01', progress: 270.0), (date: '2026-11-11', progress: 271.0)]), closeTo(0.1, 1e-9));
+    expect(levelPerDay([(date: '2026-11-01', progress: 271.0), (date: '2026-11-11', progress: 270.0)]), isNull);
+  });
+
+  test('메이플 숫자 요약: 레벨업 예상·결정석·목표 남은 주', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AppStore(await SharedPreferences.getInstance());
+    final now = DateTime(2026, 11, 13, 12);
+    store.characters.add(MapleCharacter(id: 'c', name: '단풍이', ocid: 'o', job: '아크메이지', world: '스카니아',
+        level: 276, expRate: 50, history: [
+          MapleSnapshot(date: '2026-11-03', level: 275, expRate: 50),
+          MapleSnapshot(date: '2026-11-13', level: 276, expRate: 50),
+        ]));
+    store.games.add(Game(id: 'g', name: '메이플스토리', resetHour: 0, weeklyResetWeekday: DateTime.thursday,
+        crystalWeeks: {'2026-10-29': 2000000000, '2026-11-05': 4000000000},
+        goals: [Goal(id: 'm', title: '무기', current: 3000000000, target: 30000000000, autoMetric: 'crystal')]));
+    final t = mapleContext(store, now);
+    expect(t, contains('하루 평균 0.100레벨'));
+    expect(t, contains('다음 레벨까지 약 5일'));
+    expect(t, contains('평균 30억'));
+    expect(t, contains('약 9주 남음')); // (300억-30억)/30억
+  });
+
+  test('리포트·코치 해석', () {
+    final now = DateTime(2026, 11, 13, 12);
+    final r = parseReport({'summary': '잘 보냈어요', 'highlights': ['보고서 제출'], 'nextWeek': ['운동 3회']}, now);
+    expect(r.id, 'report:2026-11-13');
+    expect(r.body, allOf(contains('잘 보냈어요'), contains('· 보고서 제출')));
+    expect(r.bullets, ['운동 3회']);
+    final c = parseCoach({'answer': '약 5일', 'points': ['몬파 매일']}, '레벨업 언제?', now);
+    expect((c.type, c.title, c.body), ('coach', '레벨업 언제?', '약 5일'));
   });
 }

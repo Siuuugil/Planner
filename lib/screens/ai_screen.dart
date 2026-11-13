@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../ai/ai_service.dart';
 import '../ai/claude_cli.dart';
@@ -24,6 +25,8 @@ class AiScreen extends StatelessWidget {
                   'PC에서 만든 계획·리포트는 여기에도 동기화돼서 보여요.'),
             ),
           _PlanSection(ai: ai != null && ai.supported ? ai : null),
+          _ReportSection(ai: ai != null && ai.supported ? ai : null),
+          if (!StoreScope.of(context).hideGames) _CoachSection(ai: ai != null && ai.supported ? ai : null),
           if (ai != null && ai.supported) ...[
             if (ai.running != null)
               Padding(
@@ -257,6 +260,177 @@ class PlanView extends StatelessWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// AI 노트 한 건 (리포트·코치 답변)
+class NoteCard extends StatelessWidget {
+  const NoteCard(this.note, {super.key, this.showTitle = true, this.bulletsTitle});
+
+  final AiNote note;
+  final bool showTitle;
+  final String? bulletsTitle;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (showTitle)
+            Text(note.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          Text(DateFormat('M/d HH:mm').format(note.createdAt),
+              style: const TextStyle(fontSize: 11.5, color: Ui.subtext)),
+          const SizedBox(height: 6),
+          Text(note.body, style: const TextStyle(height: 1.5)),
+          if (note.bullets.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            if (bulletsTitle != null)
+              Text(bulletsTitle!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            for (final b in note.bullets)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text('→ $b', style: const TextStyle(fontSize: 13.5)),
+              ),
+          ],
+        ],
+      );
+}
+
+class _ReportSection extends StatefulWidget {
+  const _ReportSection({required this.ai});
+
+  final AiService? ai;
+
+  @override
+  State<_ReportSection> createState() => _ReportSectionState();
+}
+
+class _ReportSectionState extends State<_ReportSection> {
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final report = store.notes.where((n) => n.type == 'report').firstOrNull;
+    return AppSection(
+      title: '주간 리포트',
+      trailing: widget.ai == null
+          ? null
+          : TextButton.icon(
+              onPressed: widget.ai!.running != null
+                  ? null
+                  : () async {
+                      setState(() => _error = null);
+                      try {
+                        await widget.ai!.weeklyReport();
+                      } on ClaudeCliException catch (e) {
+                        if (mounted) setState(() => _error = e.message);
+                      }
+                    },
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: const Text('지난 7일 정리'),
+            ),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_error != null) Text(_error!, style: const TextStyle(color: Ui.red)),
+          if (report == null)
+            const Text('지난 7일 동안 한 일과 결정석·성장을 돌아보고 다음 주 할 일을 정리해 줘요.',
+                style: TextStyle(color: Ui.subtext))
+          else
+            NoteCard(report, bulletsTitle: '다음 주에 할 것'),
+        ],
+      ),
+    );
+  }
+}
+
+class _CoachSection extends StatefulWidget {
+  const _CoachSection({required this.ai});
+
+  final AiService? ai;
+
+  @override
+  State<_CoachSection> createState() => _CoachSectionState();
+}
+
+class _CoachSectionState extends State<_CoachSection> {
+  final _q = TextEditingController();
+  String? _error;
+
+  static const presets = ['다음 레벨업 언제쯤?', '이번 주 결정석 더 벌려면?', '메소 목표 언제 달성해?', '지금 제일 먼저 할 스펙업은?'];
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _ask(String q) async {
+    if (q.trim().isEmpty) return;
+    setState(() => _error = null);
+    try {
+      await widget.ai!.coach(q.trim());
+      _q.clear();
+    } on ClaudeCliException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final answers = store.notes.where((n) => n.type == 'coach').take(5).toList();
+    final busy = widget.ai?.running != null;
+    return AppSection(
+      title: '메이플 코치',
+      accent: Ui.purple,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.ai != null) ...[
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final p in presets)
+                  ActionChip(label: Text(p), onPressed: busy ? null : () => _ask(p)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _q,
+              enabled: !busy,
+              onSubmitted: _ask,
+              decoration: InputDecoration(
+                hintText: '캐릭터·결정석·목표에 대해 물어보세요',
+                suffixIcon: IconButton(
+                  tooltip: '질문',
+                  icon: const Icon(Icons.arrow_upward_rounded),
+                  onPressed: busy ? null : () => _ask(_q.text),
+                ),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_error!, style: const TextStyle(color: Ui.red)),
+              ),
+            const SizedBox(height: 12),
+          ],
+          if (answers.isEmpty)
+            const Text('레벨업 예상일, 결정석, 메소 목표 같은 걸 앱이 계산한 숫자로 답해 줘요.',
+                style: TextStyle(color: Ui.subtext))
+          else
+            for (final a in answers)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: NoteCard(a),
+              ),
+        ],
+      ),
     );
   }
 }

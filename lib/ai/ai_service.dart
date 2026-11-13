@@ -122,6 +122,60 @@ AiNote parsePlan(Map<String, dynamic> json, DateTime now) {
   );
 }
 
+/// 메이플 코치 프롬프트
+String coachPrompt(String question, String stats, DateTime now) => '''
+너는 메이플스토리 성장 코치야. 아래 [숫자]는 앱이 계산한 정확한 값이야. 질문에 이 숫자를 근거로 답해.
+숫자를 새로 지어내지 말고, 계산이 필요하면 아래 값으로만 해. 모르는 건 모른다고 말해.
+도구는 쓰지 말고 JSON 객체 하나만 답해.
+
+${todayLine(now)}
+
+형식: {"answer":"3~6문장 한국어 답","points":["바로 해볼 것 1","바로 해볼 것 2"]}
+
+[숫자]
+$stats
+
+질문: $question''';
+
+/// 주간 리포트 프롬프트
+String reportPrompt(String review, DateTime now, {required bool hideGames}) => '''
+너는 사용자의 한 주를 돌아봐 주는 비서야. 아래 지난 7일 기록으로 짧은 주간 리포트를 써 줘.
+숫자는 아래 값만 쓰고 지어내지 마. 다그치지 말고 담백하게.${hideGames ? ' 게임 이야기는 하지 마.' : ''}
+도구는 쓰지 말고 JSON 객체 하나만 답해.
+
+${todayLine(now)}
+
+형식: {"summary":"한 주 요약 3~4문장","highlights":["잘한 점이나 눈에 띄는 숫자 2~4개"],"nextWeek":["다음 주에 할 것 2~4개"]}
+
+[기록]
+$review''';
+
+AiNote parseCoach(Map<String, dynamic> json, String question, DateTime now) => AiNote(
+      id: 'coach:${now.microsecondsSinceEpoch}',
+      type: 'coach',
+      title: question,
+      body: '${json['answer'] ?? ''}'.trim(),
+      createdAt: now,
+      bullets: [for (final p in (json['points'] as List? ?? [])) '$p'.trim()],
+    );
+
+AiNote parseReport(Map<String, dynamic> json, DateTime now) {
+  final date = DateFormat('yyyy-MM-dd').format(now);
+  return AiNote(
+    id: 'report:$date',
+    type: 'report',
+    title: '${DateFormat('M월 d일', 'ko_KR').format(now)} 주간 리포트',
+    body: [
+      '${json['summary'] ?? ''}'.trim(),
+      if ((json['highlights'] as List? ?? []).isNotEmpty)
+        '\n잘한 점\n${(json['highlights'] as List).map((h) => '· $h').join('\n')}',
+    ].join('\n'),
+    createdAt: now,
+    date: date,
+    bullets: [for (final p in (json['nextWeek'] as List? ?? [])) '$p'.trim()],
+  );
+}
+
 /// AI 기능 (PC에서 Claude CLI 사용). 실행 경로는 기기별 설정.
 class AiService extends ChangeNotifier {
   AiService(this.store, this._prefs);
@@ -169,6 +223,24 @@ class AiService extends ChangeNotifier {
     final now = DateTime.now();
     final json = await _ask('오늘 계획', planPrompt(plannerContext(store, now), now, hideGames: store.hideGames));
     final note = parsePlan(json, now);
+    store.saveNote(note);
+    return note;
+  }
+
+  /// 메이플 코치에게 질문 (답은 저장·동기화)
+  Future<AiNote> coach(String question) async {
+    final now = DateTime.now();
+    final json = await _ask('메이플 코치', coachPrompt(question, mapleContext(store, now), now));
+    final note = parseCoach(json, question, now);
+    store.saveNote(note);
+    return note;
+  }
+
+  /// 지난 7일 주간 리포트
+  Future<AiNote> weeklyReport() async {
+    final now = DateTime.now();
+    final json = await _ask('주간 리포트', reportPrompt(weekReviewContext(store, now), now, hideGames: store.hideGames));
+    final note = parseReport(json, now);
     store.saveNote(note);
     return note;
   }

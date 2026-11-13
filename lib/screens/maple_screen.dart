@@ -7,6 +7,7 @@ import '../models/maple_character.dart';
 import '../ui/kit.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/maple_widgets.dart';
+import 'ai_screen.dart';
 import 'character_screen.dart';
 import 'crystal_screen.dart';
 import 'game_detail_screen.dart';
@@ -37,6 +38,11 @@ class _MapleScreenState extends State<MapleScreen> {
     return AppScaffold(
       title: '메이플',
       actions: [
+        IconButton(
+          tooltip: 'AI 메이플 코치',
+          icon: const Icon(Icons.auto_awesome, color: Ui.purple),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiScreen())),
+        ),
         if (maple != null && chars.isNotEmpty)
           IconButton(
             tooltip: '캐릭터 추가',

@@ -176,6 +176,51 @@ AiNote parseReport(Map<String, dynamic> json, DateTime now) {
   );
 }
 
+/// 대화 프롬프트. 바꾸는 일은 actions로 제안만 하고, 사용자가 확인해야 적용된다.
+String chatPrompt(String message, String context, List<AiNote> history, DateTime now, {required bool hideGames}) => '''
+너는 사용자의 일정·할 일${hideGames ? '' : '·메이플스토리 숙제'}를 같이 관리하는 비서야. 짧고 친근하게 한국어로 답해.
+아래 [상황]과 [숫자]는 앱이 준 정확한 값이니 이것만 근거로 하고, 모르는 건 지어내지 마.${hideGames ? ' 게임 이야기는 하지 마 (회사 모드).' : ''}
+일정·할 일을 추가하거나 완료 처리해 달라는 요청이면 직접 했다고 하지 말고 actions로 제안해 (사용자가 확인 버튼을 눌러야 적용돼).
+도구는 쓰지 말고 JSON 객체 하나만 답해.
+
+${todayLine(now)}
+
+actions 종류:
+- {"type":"add_schedule","title":"...","date":"YYYY-MM-DD","time":"HH:MM"|null,"game":true|false,"memo":"..."}
+- {"type":"add_task","title":"...","due":"YYYY-MM-DD"|null,"category":"work"|"personal","memo":"..."}
+- {"type":"complete_task","title":"[상황]에 있는 할 일 제목 그대로"}
+- {"type":"check_chore","chore":"[상황]에 있는 숙제·보스 이름 그대로"}
+
+형식: {"reply":"답","actions":[...]}  (제안할 게 없으면 actions는 [])
+
+[상황]
+$context
+${history.isEmpty ? '' : '[최근 대화]\n${history.map((h) => '사용자: ${h.title}\n비서: ${h.body}').join('\n')}\n'}
+사용자: $message''';
+
+const _actionTypes = {'add_schedule', 'add_task', 'complete_task', 'check_chore'};
+
+AiNote parseChat(Map<String, dynamic> json, String message, DateTime now) => AiNote(
+      id: 'chat:${now.microsecondsSinceEpoch}',
+      type: 'chat',
+      title: message,
+      body: '${json['reply'] ?? ''}'.trim(),
+      createdAt: now,
+      actions: [
+        for (final a in (json['actions'] as List? ?? []))
+          if (a is Map && _actionTypes.contains(a['type'])) a.cast<String, dynamic>(),
+      ],
+    );
+
+/// 제안 작업을 사람이 읽는 한 줄로
+String describeAction(Map<String, dynamic> a) => switch (a['type']) {
+      'add_schedule' => '${a['game'] == true ? '게임 일정' : '일정'} 추가: ${a['title']} · ${a['date']} ${a['time'] ?? '종일'}',
+      'add_task' => '할 일 추가: ${a['title']}${a['due'] == null ? '' : ' · ${a['due']}까지'}',
+      'complete_task' => '할 일 완료: ${a['title']}',
+      'check_chore' => '숙제 체크: ${a['chore']}',
+      _ => '${a['type']}',
+    };
+
 /// AI 기능 (PC에서 Claude CLI 사용). 실행 경로는 기기별 설정.
 class AiService extends ChangeNotifier {
   AiService(this.store, this._prefs);
@@ -243,6 +288,66 @@ class AiService extends ChangeNotifier {
     final note = parseReport(json, now);
     store.saveNote(note);
     return note;
+  }
+
+  /// 대화 한 번 (최근 6번의 대화를 함께 보낸다)
+  Future<AiNote> chat(String message) async {
+    final now = DateTime.now();
+    final history = store.notes.where((n) => n.type == 'chat').take(6).toList().reversed.toList();
+    final context = store.hideGames
+        ? plannerContext(store, now)
+        : '${plannerContext(store, now)}\n[숫자]\n${mapleContext(store, now)}';
+    final json = await _ask('대화', chatPrompt(message, context, history, now, hideGames: store.hideGames));
+    final note = parseChat(json, message, now);
+    store.saveNote(note);
+    return note;
+  }
+
+  /// 제안 작업 적용. 결과를 한 줄로 돌려준다 (못 찾으면 그 이유).
+  String applyAction(Map<String, dynamic> a) {
+    switch (a['type']) {
+      case 'add_schedule':
+        applyQuickItems([
+          QuickItem(
+            isTask: false,
+            title: '${a['title']}',
+            date: DateTime.tryParse('${a['date']}'),
+            time: RegExp(r'^\d{1,2}:\d{2}$').hasMatch('${a['time']}') ? '${a['time']}' : null,
+            game: a['game'] == true,
+            memo: '${a['memo'] ?? ''}',
+          ),
+        ]);
+        return '추가했어요';
+      case 'add_task':
+        applyQuickItems([
+          QuickItem(
+            isTask: true,
+            title: '${a['title']}',
+            date: DateTime.tryParse('${a['due']}'),
+            work: a['category'] != 'personal',
+            memo: '${a['memo'] ?? ''}',
+          ),
+        ]);
+        return '추가했어요';
+      case 'complete_task':
+        final t = store.tasks.where((t) => !t.done && t.title == '${a['title']}').firstOrNull;
+        if (t == null) return '"${a['title']}" 할 일을 찾지 못했어요';
+        t.done = true;
+        store.commit();
+        return '완료로 표시했어요';
+      case 'check_chore':
+        final now = DateTime.now();
+        for (final g in store.games) {
+          for (final c in g.chores) {
+            if (c.title == '${a['chore']}' && !g.isChoreDone(c, now)) {
+              store.toggleChore(g, c);
+              return '체크했어요';
+            }
+          }
+        }
+        return '"${a['chore']}" 숙제를 찾지 못했거나 이미 했어요';
+    }
+    return '할 수 없는 작업이에요';
   }
 
   /// 미리보기에서 고른 항목을 실제로 저장

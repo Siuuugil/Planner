@@ -6,6 +6,7 @@ import '../ai/claude_cli.dart';
 import '../data/store_scope.dart';
 import '../models/ai_note.dart';
 import '../ui/kit.dart';
+import 'chat_screen.dart';
 
 /// AI 화면: 빠른 입력 (이후 오늘 계획·코치·리포트·대화가 여기에 붙는다)
 class AiScreen extends StatelessWidget {
@@ -24,6 +25,15 @@ class AiScreen extends StatelessWidget {
               child: EmptyHint('AI 기능은 PC(Windows) 앱에서 내 컴퓨터의 Claude Code로 실행돼요. '
                   'PC에서 만든 계획·리포트는 여기에도 동기화돼서 보여요.'),
             ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: StatCard(
+              label: 'AI와 대화',
+              value: '무엇이든 물어보세요',
+              caption: '"다음 주 화요일 2시 치과 넣어줘" 처럼 말하면 확인 후 추가해 줘요',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
+            ),
+          ),
           _PlanSection(ai: ai != null && ai.supported ? ai : null),
           _ReportSection(ai: ai != null && ai.supported ? ai : null),
           if (!StoreScope.of(context).hideGames) _CoachSection(ai: ai != null && ai.supported ? ai : null),

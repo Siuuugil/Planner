@@ -33,8 +33,10 @@ class AiNote {
     this.date,
     List<PlanBlock>? blocks,
     List<String>? bullets,
+    List<Map<String, dynamic>>? actions,
   })  : blocks = blocks ?? [],
-        bullets = bullets ?? [];
+        bullets = bullets ?? [],
+        actions = actions ?? [];
 
   final String id;
 
@@ -53,6 +55,9 @@ class AiNote {
   /// 짧은 팁·요점
   final List<String> bullets;
 
+  /// 대화: AI가 제안한 작업 (사용자가 확인하면 적용)
+  final List<Map<String, dynamic>> actions;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'type': type,
@@ -62,6 +67,7 @@ class AiNote {
         if (date != null) 'date': date,
         if (blocks.isNotEmpty) 'blocks': blocks.map((b) => b.toJson()).toList(),
         if (bullets.isNotEmpty) 'bullets': bullets,
+        if (actions.isNotEmpty) 'actions': actions,
       };
 
   factory AiNote.fromJson(Map<String, dynamic> j) => AiNote(
@@ -73,5 +79,6 @@ class AiNote {
         date: j['date'] as String?,
         blocks: [for (final b in (j['blocks'] as List? ?? [])) PlanBlock.fromJson(b as Map<String, dynamic>)],
         bullets: [for (final b in (j['bullets'] as List? ?? [])) '$b'],
+        actions: [for (final a in (j['actions'] as List? ?? [])) (a as Map).cast<String, dynamic>()],
       );
 }

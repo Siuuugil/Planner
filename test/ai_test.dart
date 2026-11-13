@@ -123,4 +123,34 @@ void main() {
     final c = parseCoach({'answer': '약 5일', 'points': ['몬파 매일']}, '레벨업 언제?', now);
     expect((c.type, c.title, c.body), ('coach', '레벨업 언제?', '약 5일'));
   });
+
+  test('대화: 모르는 작업은 버리고, 각 작업이 실제로 적용됨', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = AppStore(await SharedPreferences.getInstance());
+    final ai = AiService(store, await SharedPreferences.getInstance());
+    final now = DateTime(2026, 11, 13, 12);
+    store.tasks.add(Task(id: 't', title: '보고서', category: TaskCategory.work));
+    store.games.add(Game(id: 'g', name: '메이플스토리', resetHour: 0, chores: [Chore(id: 'c', title: '몬스터 파크', period: ChorePeriod.daily)]));
+    store.commit();
+
+    final n = parseChat({
+      'reply': '넣어둘게요',
+      'actions': [
+        {'type': 'add_schedule', 'title': '치과', 'date': '2026-11-17', 'time': '14:00', 'game': false},
+        {'type': 'add_task', 'title': '영수증 정리', 'due': null, 'category': 'personal'},
+        {'type': 'complete_task', 'title': '보고서'},
+        {'type': 'check_chore', 'chore': '몬스터 파크'},
+        {'type': 'delete_everything'},
+      ],
+    }, '치과 넣어줘', now);
+    expect(n.actions.length, 4);
+    expect(describeAction(n.actions[0]), '일정 추가: 치과 · 2026-11-17 14:00');
+
+    expect(n.actions.map(ai.applyAction).toList(), ['추가했어요', '추가했어요', '완료로 표시했어요', '체크했어요']);
+    expect(store.schedules.single.start, DateTime(2026, 11, 17, 14));
+    expect(store.tasks.map((t) => (t.title, t.done)), [('보고서', true), ('영수증 정리', false)]);
+    final g = store.games.single;
+    expect(g.isChoreDone(g.chores.single, DateTime.now()), isTrue);
+    expect(ai.applyAction({'type': 'complete_task', 'title': '없는 일'}), contains('찾지 못했어요'));
+  });
 }

@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 
 import '../ai/ai_service.dart';
 import '../ai/claude_cli.dart';
+import '../ai/voice.dart';
 import '../data/store_scope.dart';
+import '../data/sync_service.dart';
 import '../models/ai_note.dart';
 import '../ui/kit.dart';
 
@@ -21,11 +23,36 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _pending;
   String? _error;
 
+  /// 이미 읽어줬거나 화면을 열 때 있던 답 (새로 온 답만 읽어준다)
+  final Set<String> _heard = {};
+  bool _primed = false;
+  VoiceService? _voice;
+
   @override
   void dispose() {
     _input.dispose();
     _scroll.dispose();
+    _voice?.stopSpeaking();
+    _voice?.stopListening();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _voice = VoiceScope.of(context);
+    final chats = StoreScope.of(context).notes.where((n) => n.type == 'chat');
+    if (!_primed) {
+      _primed = true;
+      _heard.addAll(chats.where((c) => !c.waiting).map((c) => c.id));
+      return;
+    }
+    // 새로 도착한 답 → 읽어주고, 핸즈프리면 다시 듣기
+    for (final c in chats) {
+      if (c.waiting || c.status == 'error' || c.body.isEmpty || !_heard.add(c.id)) continue;
+      _toBottom();
+      _speakThenListen(c.body);
+    }
   }
 
   void _toBottom() => WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -35,10 +62,32 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       });
 
-  Future<void> _send(AiService ai) async {
+  Future<void> _speakThenListen(String text) async {
+    final voice = _voice;
+    if (voice == null || !voice.speakReplies) return;
+    await voice.speak(text);
+    if (!mounted || !voice.handsFree || !VoiceService.sttSupported) return;
+    await voice.listen((t) => _sendText(t));
+  }
+
+  void _send() {
     final text = _input.text.trim();
-    if (text.isEmpty || ai.running != null) return;
+    if (text.isEmpty) return;
     _input.clear();
+    _sendText(text);
+  }
+
+  /// PC: 바로 Claude에게 묻는다. 폰·웹: 요청을 동기화로 보내고 PC 앱이 답한다.
+  Future<void> _sendText(String text) async {
+    final ai = AiScope.of(context);
+    if (ai == null) return;
+    if (!ai.supported) {
+      ai.requestChat(text);
+      setState(() => _error = null);
+      _toBottom();
+      return;
+    }
+    if (ai.running != null) return;
     setState(() {
       _pending = text;
       _error = null;
@@ -58,7 +107,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final ai = AiScope.of(context);
-    final canSend = ai != null && ai.supported;
+    final voice = VoiceScope.of(context);
+    final sync = SyncScope.of(context);
+    final onPc = ai != null && ai.supported;
+    final signedIn = sync?.user != null;
+    final canSend = ai != null && (onPc || signedIn);
+    final canTalk = canSend && VoiceService.sttSupported && voice != null;
     final chats = store.notes.where((n) => n.type == 'chat').toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
@@ -66,6 +120,19 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: const Text('AI와 대화'),
         actions: [
+          if (voice != null)
+            IconButton(
+              tooltip: voice.speakReplies ? '답 읽어주기 끄기' : '답 읽어주기 켜기',
+              icon: Icon(voice.speakReplies ? Icons.volume_up_rounded : Icons.volume_off_rounded),
+              onPressed: () => voice.speakReplies = !voice.speakReplies,
+            ),
+          if (canTalk)
+            IconButton(
+              tooltip: voice.handsFree ? '핸즈프리 끄기' : '핸즈프리: 답을 다 읽으면 다시 듣기',
+              icon: Icon(voice.handsFree ? Icons.headset_mic_rounded : Icons.headset_off_rounded),
+              color: voice.handsFree ? Ui.accent : null,
+              onPressed: () => voice.handsFree = !voice.handsFree,
+            ),
           if (chats.isNotEmpty)
             IconButton(
               tooltip: '대화 지우기',
@@ -89,34 +156,43 @@ class _ChatScreenState extends State<ChatScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 24),
                     child: Text(
-                      canSend
-                          ? '예: "오늘 뭐부터 하면 좋아?", "다음 주 화요일 2시 치과 넣어줘", '
+                      !canSend
+                          ? '폰·웹에서 대화하려면 로그인해 주세요. PC 앱이 같은 계정으로 켜져 있으면 PC의 Claude가 답해요.'
+                          : '예: "오늘 뭐부터 하면 좋아?", "다음 주 화요일 2시 치과 넣어줘", '
                               '"보고서 끝냈어", "이번 주 보스 뭐 남았어?"'
-                          : '대화는 PC 앱에서 할 수 있어요. PC에서 나눈 대화가 여기에 보여요.',
+                              '${onPc ? '\n\n한국어 음성 입력: 입력칸을 누르고 Win + H' : '\n\n🎤 를 누르고 말하면 돼요. 답은 PC 앱(같은 계정으로 켜져 있어야 함)이 해요.'}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Ui.subtext, height: 1.6),
                     ),
                   ),
                 for (final c in chats) ...[
                   _Bubble(text: c.title, mine: true),
-                  _Bubble(text: c.body, mine: false, time: c.createdAt),
+                  if (c.waiting)
+                    _Waiting(c.status == 'working' ? 'PC가 답하는 중…' : 'PC 앱이 받기를 기다리는 중…')
+                  else if (c.status == 'error')
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text('답을 못 받았어요: ${c.body}', style: const TextStyle(color: Ui.red)),
+                    )
+                  else
+                    _Bubble(
+                      text: c.body,
+                      mine: false,
+                      time: c.createdAt,
+                      onSpeak: voice == null ? null : () => voice.speak(c.body),
+                    ),
                   for (final a in c.actions) _ActionCard(note: c, action: a, enabled: canSend),
                 ],
                 if (_pending != null) ...[
                   _Bubble(text: _pending!, mine: true),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Row(children: [
-                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                      SizedBox(width: 8),
-                      Text('생각하는 중…', style: TextStyle(color: Ui.subtext)),
-                    ]),
-                  ),
+                  const _Waiting('생각하는 중…'),
                 ],
                 if (_error != null) Text(_error!, style: const TextStyle(color: Ui.red)),
               ],
             ),
           ),
+          if (voice != null && (voice.listening || voice.speaking || voice.error != null))
+            _VoiceBar(voice),
           if (canSend)
             SafeArea(
               top: false,
@@ -128,19 +204,28 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: Row(
                   children: [
+                    if (canTalk)
+                      IconButton(
+                        tooltip: voice.listening ? '그만 듣기' : '말하기',
+                        color: voice.listening ? Ui.red : Ui.accent,
+                        icon: Icon(voice.listening ? Icons.stop_circle_rounded : Icons.mic_rounded),
+                        onPressed: () => voice.listening
+                            ? voice.stopListening()
+                            : voice.listen((t) => _sendText(t)),
+                      ),
                     Expanded(
                       child: TextField(
                         controller: _input,
                         minLines: 1,
                         maxLines: 4,
                         textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(ai),
-                        decoration: const InputDecoration(hintText: '메시지'),
+                        onSubmitted: (_) => _send(),
+                        decoration: InputDecoration(hintText: onPc ? '메시지 (음성: Win + H)' : '메시지'),
                       ),
                     ),
                     IconButton.filled(
                       tooltip: '보내기',
-                      onPressed: ai.running != null ? null : () => _send(ai),
+                      onPressed: onPc && ai.running != null ? null : _send,
                       icon: const Icon(Icons.arrow_upward_rounded),
                     ),
                   ],
@@ -153,12 +238,57 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+class _Waiting extends StatelessWidget {
+  const _Waiting(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(children: [
+          const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(color: Ui.subtext)),
+        ]),
+      );
+}
+
+/// 듣는 중(알아들은 말) · 읽는 중 · 오류
+class _VoiceBar extends StatelessWidget {
+  const _VoiceBar(this.voice);
+
+  final VoiceService voice;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, text, color) = voice.listening
+        ? (Icons.graphic_eq_rounded, voice.partial.isEmpty ? '듣고 있어요…' : voice.partial, Ui.accent)
+        : voice.speaking
+            ? (Icons.volume_up_rounded, '읽는 중…', Ui.subtext)
+            : (Icons.error_outline, voice.error ?? '', Ui.red);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      color: const Color(0xFFFBF7F1),
+      child: Row(children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: TextStyle(color: color))),
+        if (voice.speaking)
+          TextButton(onPressed: voice.stopSpeaking, child: const Text('그만')),
+      ]),
+    );
+  }
+}
+
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.text, required this.mine, this.time});
+  const _Bubble({required this.text, required this.mine, this.time, this.onSpeak});
 
   final String text;
   final bool mine;
   final DateTime? time;
+  final VoidCallback? onSpeak;
 
   @override
   Widget build(BuildContext context) => Align(
@@ -179,8 +309,18 @@ class _Bubble extends StatelessWidget {
               if (time != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(DateFormat('M/d HH:mm').format(time!),
-                      style: const TextStyle(fontSize: 11, color: Ui.subtext)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(DateFormat('M/d HH:mm').format(time!),
+                        style: const TextStyle(fontSize: 11, color: Ui.subtext)),
+                    if (onSpeak != null)
+                      InkWell(
+                        onTap: onSpeak,
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(Icons.volume_up_outlined, size: 15, color: Ui.subtext),
+                        ),
+                      ),
+                  ]),
                 ),
             ],
           ),

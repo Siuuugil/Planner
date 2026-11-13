@@ -3,6 +3,8 @@ import 'package:game_planner/ai/ai_service.dart';
 import 'package:game_planner/ai/claude_cli.dart';
 import 'package:game_planner/ai/context.dart';
 import 'package:game_planner/data/app_store.dart';
+import 'package:game_planner/ai/voice.dart';
+import 'package:game_planner/models/ai_note.dart';
 import 'package:game_planner/models/game.dart';
 import 'package:game_planner/models/maple_character.dart';
 import 'package:game_planner/models/schedule.dart';
@@ -152,5 +154,70 @@ void main() {
     final g = store.games.single;
     expect(g.isChoreDone(g.chores.single, DateTime.now()), isTrue);
     expect(ai.applyAction({'type': 'complete_task', 'title': '없는 일'}), contains('찾지 못했어요'));
+  });
+
+  group('폰·웹 → PC 대화 중계', () {
+    test('대기 상태는 JSON으로 오가고, 답이 끝나면 사라진다', () {
+      final n = AiNote(id: 'chat:1', type: 'chat', title: '안녕', body: '', createdAt: DateTime(2026, 11, 13), status: 'pending');
+      final back = AiNote.fromJson(n.toJson());
+      expect(back.status, 'pending');
+      expect(back.waiting, isTrue);
+      final done = AiNote(id: 'chat:1', type: 'chat', title: '안녕', body: '네', createdAt: DateTime(2026, 11, 13));
+      expect(done.toJson().containsKey('status'), isFalse);
+      expect(AiNote.fromJson(done.toJson()).waiting, isFalse);
+    });
+
+    test('폰이 보낸 요청에 PC가 답한다 (pending → 답)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final phoneStore = AppStore(prefs);
+      // 폰: CLI 없음 → 요청만 저장
+      AiService(phoneStore, prefs).requestChat('오늘 뭐 해?');
+      final req = phoneStore.notes.single;
+      expect(req.status, 'pending');
+
+      // PC: 같은 요청이 동기화로 들어오면 답한다
+      final pcStore = AppStore(prefs);
+      final prompts = <String>[];
+      AiService(pcStore, prefs, askOverride: (p) async {
+        prompts.add(p);
+        return {'reply': '보고서부터 해요', 'actions': []};
+      });
+      pcStore.saveNote(AiNote.fromJson(req.toJson()));
+      await pumpEventQueue();
+
+      final ans = pcStore.notes.single;
+      expect(ans.id, req.id);
+      expect(ans.status, isNull);
+      expect(ans.body, '보고서부터 해요');
+      expect(prompts.single, contains('오늘 뭐 해?'));
+    });
+
+    test('답하기를 끄거나 오래된 요청은 무시, 실패는 error', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final store = AppStore(prefs);
+      final ai = AiService(store, prefs, askOverride: (_) async => throw ClaudeCliException('로그인 필요'));
+      store.saveNote(AiNote(
+          id: 'chat:old', type: 'chat', title: '옛날', body: '', status: 'pending',
+          createdAt: DateTime.now().subtract(const Duration(hours: 1))));
+      await pumpEventQueue();
+      expect(store.notes.single.status, 'pending');
+
+      ai.serveRemote = false;
+      store.saveNote(AiNote(id: 'chat:new', type: 'chat', title: '지금', body: '', status: 'pending', createdAt: DateTime.now()));
+      await pumpEventQueue();
+      expect(store.notes.firstWhere((n) => n.id == 'chat:new').status, 'pending');
+
+      ai.serveRemote = true;
+      await pumpEventQueue();
+      final n = store.notes.firstWhere((n) => n.id == 'chat:new');
+      expect(n.status, 'error');
+      expect(n.body, contains('로그인 필요'));
+    });
+  });
+
+  test('읽어줄 때 이모지·기호는 빼고 읽는다', () {
+    expect(spokenText('✨ **오늘** 할 일 → 보고서 · 헬스'), '오늘 할 일 보고서 헬스');
   });
 }

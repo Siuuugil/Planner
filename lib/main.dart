@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ai/ai_service.dart';
+import 'ai/voice.dart';
 import 'config.dart';
 import 'data/app_store.dart';
 import 'data/store_scope.dart';
@@ -38,18 +39,20 @@ Future<void> main() async {
           },
   );
   final ai = await AiService.open(store);
-  runApp(MyPlannerApp(store: store, sync: sync, notify: notify, maple: maple, ai: ai));
+  final voice = await VoiceService.open();
+  runApp(MyPlannerApp(store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice));
   maple.refreshStale();
 }
 
 class MyPlannerApp extends StatelessWidget {
-  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai});
+  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice});
 
   final AppStore store;
   final SyncService? sync;
   final NotifyService? notify;
   final MapleService? maple;
   final AiService? ai;
+  final VoiceService? voice;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +76,7 @@ class MyPlannerApp extends StatelessWidget {
     if (notify != null) root = NotifyScope(notify: notify!, child: root);
     if (maple != null) root = MapleScope(maple: maple!, child: root);
     if (ai != null) root = AiScope(ai: ai!, child: root);
+    if (voice != null) root = VoiceScope(voice: voice!, child: root);
     if (sync != null) root = SyncScope(sync: sync!, child: root);
     return root;
   }

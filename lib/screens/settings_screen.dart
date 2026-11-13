@@ -291,6 +291,13 @@ class _AiPanelState extends State<_AiPanel> {
           ),
           const SizedBox(height: 10),
           OutlinedButton(onPressed: _check, child: const Text('연결 확인')),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('폰·웹 대화에 이 PC가 답하기'),
+            subtitle: const Text('같은 계정의 폰·웹에서 보낸 질문(음성 포함)을 이 PC의 Claude가 받아 답해요. 앱이 켜져 있어야 해요.'),
+            value: widget.ai.serveRemote,
+            onChanged: (v) => setState(() => widget.ai.serveRemote = v),
+          ),
           if (_status != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),

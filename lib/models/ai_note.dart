@@ -34,6 +34,7 @@ class AiNote {
     List<PlanBlock>? blocks,
     List<String>? bullets,
     List<Map<String, dynamic>>? actions,
+    this.status,
   })  : blocks = blocks ?? [],
         bullets = bullets ?? [],
         actions = actions ?? [];
@@ -58,6 +59,12 @@ class AiNote {
   /// 대화: AI가 제안한 작업 (사용자가 확인하면 적용)
   final List<Map<String, dynamic>> actions;
 
+  /// 폰·웹에서 보낸 대화 요청의 상태: 'pending'(PC 대기) · 'working'(PC가 답하는 중) · 'error'.
+  /// 답이 끝나면 null.
+  final String? status;
+
+  bool get waiting => status == 'pending' || status == 'working';
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'type': type,
@@ -68,6 +75,7 @@ class AiNote {
         if (blocks.isNotEmpty) 'blocks': blocks.map((b) => b.toJson()).toList(),
         if (bullets.isNotEmpty) 'bullets': bullets,
         if (actions.isNotEmpty) 'actions': actions,
+        if (status != null) 'status': status,
       };
 
   factory AiNote.fromJson(Map<String, dynamic> j) => AiNote(
@@ -80,5 +88,6 @@ class AiNote {
         blocks: [for (final b in (j['blocks'] as List? ?? [])) PlanBlock.fromJson(b as Map<String, dynamic>)],
         bullets: [for (final b in (j['bullets'] as List? ?? [])) '$b'],
         actions: [for (final a in (j['actions'] as List? ?? [])) (a as Map).cast<String, dynamic>()],
+        status: j['status'] as String?,
       );
 }

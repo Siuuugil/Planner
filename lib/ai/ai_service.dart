@@ -223,9 +223,16 @@ String describeAction(Map<String, dynamic> a) => switch (a['type']) {
 
 /// AI 기능 (PC에서 Claude CLI 사용). 실행 경로는 기기별 설정.
 class AiService extends ChangeNotifier {
-  AiService(this.store, this._prefs);
+  AiService(this.store, this._prefs, {this.askOverride}) {
+    // 이 PC가 폰·웹의 대화 요청에 답한다 (PC 앱이 켜져 있을 때)
+    if (supported) store.addListener(_scheduleRemote);
+  }
+
+  /// 테스트용: CLI 대신 답을 만든다
+  final Future<Map<String, dynamic>> Function(String prompt)? askOverride;
 
   static const _pathKey = 'claude_cli_path';
+  static const _serveKey = 'serve_remote_chat';
   final AppStore store;
   final SharedPreferences _prefs;
 
@@ -235,7 +242,7 @@ class AiService extends ChangeNotifier {
   static Future<AiService> open(AppStore store) async =>
       AiService(store, await SharedPreferences.getInstance());
 
-  bool get supported => ClaudeCli.supported;
+  bool get supported => askOverride != null || ClaudeCli.supported;
 
   String get executable => _prefs.getString(_pathKey) ?? 'claude';
 
@@ -246,15 +253,66 @@ class AiService extends ChangeNotifier {
 
   Future<String> checkCli() => ClaudeCli.version(executable: executable);
 
+  /// 폰·웹에서 보낸 대화에 이 PC가 답할지 (기본 켜짐)
+  bool get serveRemote => _prefs.getBool(_serveKey) ?? true;
+
+  set serveRemote(bool v) {
+    _prefs.setBool(_serveKey, v);
+    notifyListeners();
+    if (v) _scheduleRemote();
+  }
+
+  bool _remoteQueued = false;
+
+  void _scheduleRemote() {
+    if (_remoteQueued || !serveRemote) return;
+    _remoteQueued = true;
+    Future.microtask(() async {
+      _remoteQueued = false;
+      await _answerRemote();
+    });
+  }
+
+  /// 대기 중인 요청(15분 이내) 하나에 답한다. 끝나면 다음 것을 다시 확인.
+  Future<void> _answerRemote() async {
+    if (running != null) return;
+    final cutoff = DateTime.now().subtract(const Duration(minutes: 15));
+    final todo = store.notes
+        .where((n) => n.type == 'chat' && n.status == 'pending' && n.createdAt.isAfter(cutoff))
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    if (todo.isEmpty) return;
+    final req = todo.first;
+    store.saveNote(AiNote(id: req.id, type: 'chat', title: req.title, body: '', createdAt: req.createdAt, status: 'working'));
+    try {
+      final json = await _ask('폰·웹 대화', _chatPromptFor(req.title, excludeId: req.id));
+      final ans = parseChat(json, req.title, req.createdAt);
+      store.saveNote(AiNote(
+          id: req.id, type: 'chat', title: req.title, body: ans.body, createdAt: req.createdAt, actions: ans.actions));
+    } on ClaudeCliException catch (e) {
+      store.saveNote(AiNote(
+          id: req.id, type: 'chat', title: req.title, body: 'PC에서 답하지 못했어요: ${e.message}', createdAt: req.createdAt, status: 'error'));
+    }
+    _scheduleRemote();
+  }
+
+  /// 폰·웹: PC에게 대화 요청을 보낸다 (PC 앱이 켜져 있으면 답이 동기화돼서 온다)
+  void requestChat(String message) {
+    final now = DateTime.now();
+    store.saveNote(AiNote(id: 'chat:${now.microsecondsSinceEpoch}', type: 'chat', title: message, body: '', createdAt: now, status: 'pending'));
+  }
+
   Future<Map<String, dynamic>> _ask(String what, String prompt) async {
     if (running != null) throw ClaudeCliException('AI가 "$running" 작업 중이에요. 끝나면 다시 해 주세요.');
     running = what;
     notifyListeners();
     try {
-      return await ClaudeCli.ask(prompt, executable: executable);
+      return await (askOverride?.call(prompt) ?? ClaudeCli.ask(prompt, executable: executable));
     } finally {
       running = null;
       notifyListeners();
+      // 다른 작업 때문에 미뤄둔 폰·웹 요청이 있으면 이어서 답한다
+      if (supported) _scheduleRemote();
     }
   }
 
@@ -293,14 +351,24 @@ class AiService extends ChangeNotifier {
   /// 대화 한 번 (최근 6번의 대화를 함께 보낸다)
   Future<AiNote> chat(String message) async {
     final now = DateTime.now();
-    final history = store.notes.where((n) => n.type == 'chat').take(6).toList().reversed.toList();
-    final context = store.hideGames
-        ? plannerContext(store, now)
-        : '${plannerContext(store, now)}\n[숫자]\n${mapleContext(store, now)}';
-    final json = await _ask('대화', chatPrompt(message, context, history, now, hideGames: store.hideGames));
+    final json = await _ask('대화', _chatPromptFor(message));
     final note = parseChat(json, message, now);
     store.saveNote(note);
     return note;
+  }
+
+  String _chatPromptFor(String message, {String? excludeId}) {
+    final now = DateTime.now();
+    final history = store.notes
+        .where((n) => n.type == 'chat' && n.id != excludeId && n.status == null && n.body.isNotEmpty)
+        .take(6)
+        .toList()
+        .reversed
+        .toList();
+    final context = store.hideGames
+        ? plannerContext(store, now)
+        : '${plannerContext(store, now)}\n[숫자]\n${mapleContext(store, now)}';
+    return chatPrompt(message, context, history, now, hideGames: store.hideGames);
   }
 
   /// 제안 작업 적용. 결과를 한 줄로 돌려준다 (못 찾으면 그 이유).

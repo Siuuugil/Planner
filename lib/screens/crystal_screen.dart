@@ -184,11 +184,11 @@ class _HistoryPanel extends StatelessWidget {
       for (var k = 11; k >= 0; k--) DateTime(start.year, start.month, start.day - 7 * k),
     ];
     String key(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
-    final values = [for (final w in weeks) g.crystalWeeks[key(w)] ?? 0];
-    final recorded = g.crystalWeeks.values.where((v) => v > 0).toList();
+    final values = [for (final w in weeks) g.weekIncome[key(w)] ?? 0];
+    final recorded = g.weekIncome.values.where((v) => v > 0).toList();
     final avg = recorded.isEmpty ? 0 : recorded.reduce((a, b) => a + b) ~/ recorded.length;
-    final total = g.crystalWeeks.values.fold<int>(0, (a, b) => a + b);
-    final month = g.crystalWeeks.entries
+    final total = g.weekIncome.values.fold<int>(0, (a, b) => a + b);
+    final month = g.weekIncome.entries
         .where((e) => e.key.startsWith(DateFormat('yyyy-MM').format(now)))
         .fold<int>(0, (a, e) => a + e.value);
     final maxV = values.fold<int>(1, math.max);

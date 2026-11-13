@@ -9,6 +9,7 @@ import 'data/store_scope.dart';
 import 'data/sync_service.dart';
 import 'maple/maple_service.dart';
 import 'notify/notify_service.dart';
+import 'screens/account_screen.dart';
 import 'screens/home_shell.dart';
 import 'ui/kit.dart';
 
@@ -47,7 +48,7 @@ class MyPlannerApp extends StatelessWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         theme: appTheme(),
-        home: const HomeShell(),
+        home: const PasswordRecoveryGate(child: HomeShell()),
       ),
     );
     Widget root = app;

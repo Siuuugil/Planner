@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config.dart';
 import 'app_store.dart';
 import 'sync_row.dart';
 
@@ -14,7 +15,14 @@ enum SyncStatus { signedOut, syncing, synced, failed }
 class SyncService extends ChangeNotifier {
   SyncService(this.store, this.client) {
     store.onLocalChange = _schedulePush;
-    _authSub = client.auth.onAuthStateChange.listen((_) => _onAuthChanged());
+    _authSub = client.auth.onAuthStateChange.listen((s) {
+      // 비밀번호 재설정 메일의 링크로 들어오면 새 비밀번호 입력을 띄운다
+      if (s.event == AuthChangeEvent.passwordRecovery) {
+        recovering = true;
+        notifyListeners();
+      }
+      _onAuthChanged();
+    });
     _lifecycle = AppLifecycleListener(onResume: sync);
     _retry = Timer.periodic(const Duration(minutes: 1), (_) {
       if (store.pending.isNotEmpty) sync();
@@ -35,6 +43,9 @@ class SyncService extends ChangeNotifier {
   bool _again = false;
 
   SyncStatus status = SyncStatus.signedOut;
+
+  /// 비밀번호 재설정 링크로 들어온 상태
+  bool recovering = false;
   String? lastError;
   DateTime? lastSynced;
 
@@ -135,7 +146,7 @@ class SyncService extends ChangeNotifier {
 
   Future<String?> signUp(String email, String password) async {
     try {
-      final res = await client.auth.signUp(email: email, password: password);
+      final res = await client.auth.signUp(email: email, password: password, emailRedirectTo: webAppUrl);
       // 이미 가입된 이메일이면 Supabase는 오류 대신 identities가 빈 사용자를 돌려주고 메일도 안 보낸다
       if (res.user != null && (res.user!.identities?.isEmpty ?? false)) {
         return '이미 가입된 이메일이에요. "로그인"으로 들어와 주세요. (확인 메일은 다시 오지 않아요)';
@@ -144,6 +155,33 @@ class SyncService extends ChangeNotifier {
         return '확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요. '
             '메일이 안 보이면 스팸함도 확인해 주세요.';
       }
+      return null;
+    } on AuthException catch (e) {
+      return _authMessage(e);
+    } catch (e) {
+      return '연결 실패: $e';
+    }
+  }
+
+  /// 비밀번호 재설정 메일 보내기. 링크는 웹 앱으로 열린다.
+  Future<String?> sendPasswordReset(String email) async {
+    try {
+      await client.auth.resetPasswordForEmail(email, redirectTo: webAppUrl);
+      return '재설정 메일을 보냈어요. 메일의 링크를 누르면 웹에서 새 비밀번호를 정할 수 있어요. '
+          '(메일이 안 보이면 스팸함도 확인해 주세요)';
+    } on AuthException catch (e) {
+      return _authMessage(e);
+    } catch (e) {
+      return '연결 실패: $e';
+    }
+  }
+
+  /// 새 비밀번호로 바꾸기 (재설정 링크로 들어온 뒤)
+  Future<String?> updatePassword(String password) async {
+    try {
+      await client.auth.updateUser(UserAttributes(password: password));
+      recovering = false;
+      notifyListeners();
       return null;
     } on AuthException catch (e) {
       return _authMessage(e);

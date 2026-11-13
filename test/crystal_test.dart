@@ -30,11 +30,11 @@ void main() {
 
     g.chores[0].lastDone = now;
     g.recomputeCrystals(now);
-    expect(g.crystalWeeks, {'2026-11-05': 500000000});
+    expect(g.weekIncome, {'2026-11-05': 500000000});
 
     g.chores[1].lastDone = now;
     g.recomputeCrystals(now);
-    expect(g.crystalWeeks['2026-11-05'], 1700000000);
+    expect(g.weekIncome['2026-11-05'], 1700000000);
   });
 
   test('완료 취소하면 기록도 줄고, 지난 주 기록은 유지', () {
@@ -44,7 +44,7 @@ void main() {
     g.recomputeCrystals(now);
     g.chores[1].lastDone = null;
     g.recomputeCrystals(now);
-    expect(g.crystalWeeks, {'2026-10-29': 2200000000, '2026-11-05': 0});
+    expect(g.weekIncome, {'2026-10-29': 2200000000, '2026-11-05': 0});
   });
 
   test('메소 목표는 시작 주 이후 결정석 수익만 누적', () async {
@@ -58,7 +58,7 @@ void main() {
     final key = g.weekKey(DateTime.now());
     g.goals.single.autoSince = key;
     store.toggleChore(g, g.chores[1]);
-    expect(g.crystalWeeks[key], 1200000000);
+    expect(g.weekIncome[key], 1200000000);
     expect(g.goals.single.current, 1200000000);
     expect(store.pending['g'], isNotNull);
   });

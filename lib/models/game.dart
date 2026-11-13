@@ -15,6 +15,8 @@ class Chore {
   final String id;
   String title;
   ChorePeriod period;
+
+  /// 마지막 완료 시각. 저장·동기화는 [DoneMark]로 하고, 여기에는 불러올 때 채운다.
   DateTime? lastDone;
 
   /// 보스 수확(결정석)이면 [Game.bosses]의 id. 주간 숙제로 취급된다.
@@ -32,7 +34,7 @@ class Chore {
         'id': id,
         'title': title,
         'period': period.name,
-        'lastDone': lastDone?.toIso8601String(),
+        // 완료 상태(lastDone)는 게임 레코드에 넣지 않고 DoneMark로 따로 동기화한다
         if (bossId != null) 'bossId': bossId,
         if (bossId != null) 'partySize': partySize,
         if (charName != null) 'charName': charName,
@@ -48,6 +50,52 @@ class Chore {
         bossId: j['bossId'] as String?,
         partySize: j['partySize'] as int? ?? 1,
         charName: j['charName'] as String?,
+      );
+}
+
+/// 숙제·보스 완료 체크 한 건. 게임 레코드와 따로 동기화해서
+/// 두 기기에서 서로 다른 숙제를 동시에 체크해도 덮어쓰지 않는다.
+/// - 일반 숙제: id `done:<choreId>` (최근 완료만)
+/// - 보스: id `done:<choreId>:<주 시작일>` (주마다 남아 결정석 수익 기록이 된다)
+class DoneMark {
+  DoneMark({
+    required this.id,
+    required this.gameId,
+    required this.choreId,
+    required this.at,
+    this.week,
+    this.income,
+  });
+
+  final String id;
+  final String gameId;
+  final String choreId;
+  final DateTime at;
+
+  /// 보스: 주 시작일 'yyyy-MM-dd'
+  final String? week;
+
+  /// 보스: 체크할 때의 1인당 수익
+  final int? income;
+
+  static String idFor(Chore c, String weekKey) => c.isBoss ? 'done:${c.id}:$weekKey' : 'done:${c.id}';
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'gameId': gameId,
+        'choreId': choreId,
+        'at': at.toIso8601String(),
+        if (week != null) 'week': week,
+        if (income != null) 'income': income,
+      };
+
+  factory DoneMark.fromJson(Map<String, dynamic> j) => DoneMark(
+        id: j['id'] as String,
+        gameId: j['gameId'] as String,
+        choreId: j['choreId'] as String,
+        at: DateTime.parse(j['at'] as String),
+        week: j['week'] as String?,
+        income: (j['income'] as num?)?.toInt(),
       );
 }
 
@@ -276,7 +324,8 @@ class Goal {
         'id': id,
         'title': title,
         'start': start,
-        'current': current,
+        // 결정석 목표의 현재값은 완료 기록에서 계산하므로 저장하지 않는다
+        if (autoMetric != 'crystal') 'current': current,
         'target': target,
         'unit': unit,
         'deadline': deadline?.toIso8601String(),
@@ -332,8 +381,14 @@ class Game {
   /// 보스 결정석 가격표
   final List<BossPrice> bosses;
 
-  /// 주간 결정석 수익 기록: 주 시작일('yyyy-MM-dd') → 메소
+  /// 예전 버전이 저장한 주간 결정석 수익 (주 시작일 → 메소). 이제는 읽기만 한다.
   final Map<String, int> crystalWeeks;
+
+  /// 완료 기록(DoneMark)에서 계산한 주간 수익. 저장하지 않는다.
+  final Map<String, int> crystalLive = {};
+
+  /// 주간 결정석 수익 (예전 기록 + 완료 기록, 같은 주는 완료 기록 우선)
+  Map<String, int> get weekIncome => {...crystalWeeks, ...crystalLive};
 
   BossPrice? bossById(String? id) {
     for (final b in bosses) {
@@ -357,7 +412,7 @@ class Game {
     seen.clear();
     for (var i = 0; i < chores.length; i++) {
       if (!seen.add(chores[i].id)) {
-        final c = Chore.fromJson(chores[i].toJson());
+        final c = chores[i];
         chores[i] = Chore(
           id: newId(),
           title: c.title,
@@ -475,11 +530,12 @@ class Game {
     final boss = chores.where((c) => c.isBoss);
     final earned = boss.where((c) => isChoreDone(c, now)).fold<int>(0, (a, c) => a + bossIncome(c));
     final key = weekKey(now);
-    if (earned > 0 || crystalWeeks.containsKey(key)) crystalWeeks[key] = earned;
+    if (earned > 0 || weekIncome.containsKey(key)) crystalLive[key] = earned;
+    final all = weekIncome;
     for (final g in goals) {
       if (g.autoMetric != 'crystal') continue;
       final since = g.autoSince ?? '';
-      g.current = crystalWeeks.entries
+      g.current = all.entries
           .where((e) => e.key.compareTo(since) >= 0)
           .fold<int>(0, (a, e) => a + e.value)
           .toDouble();

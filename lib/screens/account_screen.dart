@@ -106,6 +106,26 @@ class _SignInFormState extends State<_SignInForm> {
           onPressed: _busy ? null : () => _run(true),
           child: const Text('처음이에요 (회원가입)'),
         ),
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () async {
+                  final email = _email.text.trim();
+                  if (email.isEmpty) {
+                    setState(() => _message = '위에 이메일을 먼저 입력해 주세요.');
+                    return;
+                  }
+                  setState(() => _busy = true);
+                  final msg = await widget.sync.sendPasswordReset(email);
+                  if (mounted) {
+                    setState(() {
+                      _busy = false;
+                      _message = msg;
+                    });
+                  }
+                },
+          child: const Text('비밀번호를 잊었어요'),
+        ),
         if (_busy) const Padding(
           padding: EdgeInsets.only(top: 16),
           child: Center(child: CircularProgressIndicator()),
@@ -214,5 +234,79 @@ class SyncButton extends StatelessWidget {
         MaterialPageRoute(builder: (_) => const AccountScreen()),
       ),
     );
+  }
+}
+
+/// 재설정 링크로 들어왔을 때 새 비밀번호 입력 창을 띄운다.
+class PasswordRecoveryGate extends StatefulWidget {
+  const PasswordRecoveryGate({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<PasswordRecoveryGate> createState() => _PasswordRecoveryGateState();
+}
+
+class _PasswordRecoveryGateState extends State<PasswordRecoveryGate> {
+  bool _shown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final sync = SyncScope.of(context);
+    if (sync != null && sync.recovering && !_shown) {
+      _shown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ask(sync));
+    }
+    return widget.child;
+  }
+
+  Future<void> _ask(SyncService sync) async {
+    final ctrl = TextEditingController();
+    String? error;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (d) => StatefulBuilder(
+        builder: (d, setD) => AlertDialog(
+          title: const Text('새 비밀번호'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ctrl,
+                obscureText: true,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: '새 비밀번호 (6자 이상)'),
+              ),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(error!, style: const TextStyle(color: Ui.red)),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('나중에')),
+            FilledButton(
+              onPressed: () async {
+                final msg = await sync.updatePassword(ctrl.text);
+                if (msg == null) {
+                  if (d.mounted) Navigator.pop(d);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(const SnackBar(content: Text('비밀번호를 바꿨어요. 이제 새 비밀번호로 로그인하면 돼요.')));
+                  }
+                } else {
+                  setD(() => error = msg);
+                }
+              },
+              child: const Text('바꾸기'),
+            ),
+          ],
+        ),
+      ),
+    );
+    ctrl.dispose();
+    _shown = false;
   }
 }

@@ -41,6 +41,9 @@ class AppStore extends ChangeNotifier {
   final List<Task> tasks = [];
   final List<MapleCharacter> characters = [];
 
+  /// 숙제·보스 완료 체크 (id → 기록)
+  final Map<String, DoneMark> marks = {};
+
   /// id → 마지막으로 반영된 상태({'kind', 'data'}를 JSON 인코딩한 것). 변경 감지용.
   final Map<String, String> _known = {};
 
@@ -79,7 +82,12 @@ class AppStore extends ChangeNotifier {
           .map((e) => Task.fromJson(e as Map<String, dynamic>)));
       characters.addAll((j['characters'] as List? ?? [])
           .map((e) => MapleCharacter.fromJson(e as Map<String, dynamic>)));
+      for (final e in (j['marks'] as List? ?? [])) {
+        final m = DoneMark.fromJson(e as Map<String, dynamic>);
+        marks[m.id] = m;
+      }
     }
+    _migrateLegacyChecks();
     final sync = _prefs.getString(_syncKey);
     if (sync != null) {
       final j = jsonDecode(sync) as Map<String, dynamic>;
@@ -101,6 +109,48 @@ class AppStore extends ChangeNotifier {
       fixed |= g.fixDuplicateIds(newId);
     }
     if (fixed && _diff()) _save();
+    _hydrate();
+  }
+
+  /// 예전 버전: 게임 레코드 안 lastDone → 완료 기록으로 옮긴다
+  void _migrateLegacyChecks() {
+    for (final g in games) {
+      for (final c in g.chores) {
+        final at = c.lastDone;
+        if (at == null || marks.values.any((m) => m.choreId == c.id)) continue;
+        final week = g.weekKey(at);
+        final id = DoneMark.idFor(c, week);
+        marks[id] = DoneMark(
+          id: id,
+          gameId: g.id,
+          choreId: c.id,
+          at: at,
+          week: c.isBoss ? week : null,
+          income: c.isBoss ? g.bossIncome(c) : null,
+        );
+      }
+    }
+  }
+
+  /// 완료 기록 → 숙제 완료 상태·결정석 수익·결정석 목표 현재값
+  void _hydrate() {
+    final now = _clock();
+    for (final g in games) {
+      final latest = <String, DateTime>{};
+      g.crystalLive.clear();
+      for (final m in marks.values) {
+        if (m.gameId != g.id) continue;
+        final prev = latest[m.choreId];
+        if (prev == null || m.at.isAfter(prev)) latest[m.choreId] = m.at;
+        if (m.week != null && m.income != null) {
+          g.crystalLive[m.week!] = (g.crystalLive[m.week!] ?? 0) + m.income!;
+        }
+      }
+      for (final c in g.chores) {
+        c.lastDone = latest[c.id];
+      }
+      g.recomputeCrystals(now);
+    }
   }
 
   Map<String, (String, Map<String, dynamic>)> _snapshot() => {
@@ -108,6 +158,7 @@ class AppStore extends ChangeNotifier {
         for (final g in games) g.id: ('game', g.toJson()),
         for (final t in tasks) t.id: ('task', t.toJson()),
         for (final c in characters) c.id: ('maple', c.toJson()),
+        for (final m in marks.values) m.id: ('mark', m.toJson()),
       };
 
   static String _encode(String kind, Map<String, dynamic>? data) =>
@@ -147,6 +198,7 @@ class AppStore extends ChangeNotifier {
         'games': games.map((g) => g.toJson()).toList(),
         'tasks': tasks.map((t) => t.toJson()).toList(),
         'characters': characters.map((c) => c.toJson()).toList(),
+        'marks': marks.values.map((m) => m.toJson()).toList(),
       }),
     );
     _prefs.setString(
@@ -162,6 +214,7 @@ class AppStore extends ChangeNotifier {
 
   /// 변경 후 호출: 저장하고 화면 갱신.
   void commit() {
+    _hydrate();
     final changed = _diff();
     _save();
     notifyListeners();
@@ -173,7 +226,7 @@ class AppStore extends ChangeNotifier {
     var changed = false;
     for (final r in rows) {
       // 이 버전이 모르는 종류(이후 버전에서 추가된 것)는 건드리지 않는다.
-      if (!const {'schedule', 'game', 'task', 'maple'}.contains(r.kind)) continue;
+      if (!const {'schedule', 'game', 'task', 'maple', 'mark'}.contains(r.kind)) continue;
       final local = _stamps[r.id];
       if (local != null && !r.updatedAt.isAfter(local)) continue;
       _stamps[r.id] = r.updatedAt;
@@ -182,6 +235,18 @@ class AppStore extends ChangeNotifier {
       final gi = games.indexWhere((x) => x.id == r.id);
       final ti = tasks.indexWhere((x) => x.id == r.id);
       final ci = characters.indexWhere((x) => x.id == r.id);
+      if (r.kind == 'mark') {
+        if (r.deleted || r.data == null) {
+          marks.remove(r.id);
+          _known.remove(r.id);
+        } else {
+          final m = DoneMark.fromJson(r.data!);
+          marks[m.id] = m;
+          _known[r.id] = _encode(r.kind, m.toJson());
+        }
+        changed = true;
+        continue;
+      }
       if (r.deleted || r.data == null) {
         if (si >= 0) schedules.removeAt(si);
         if (gi >= 0) games.removeAt(gi);
@@ -214,6 +279,7 @@ class AppStore extends ChangeNotifier {
       changed = true;
     }
     if (changed) {
+      _hydrate();
       _save();
       notifyListeners();
     }
@@ -238,6 +304,7 @@ class AppStore extends ChangeNotifier {
     games.clear();
     tasks.clear();
     characters.clear();
+    marks.clear();
     _known.clear();
     _stamps.clear();
     pending.clear();
@@ -330,10 +397,24 @@ class AppStore extends ChangeNotifier {
     commit();
   }
 
+  /// 숙제 체크/해제: 게임 레코드는 그대로 두고 완료 기록만 바꾼다
   void toggleChore(Game g, Chore c) {
-    final now = DateTime.now();
-    c.lastDone = g.isChoreDone(c, now) ? null : now;
-    if (c.isBoss) g.recomputeCrystals(now);
+    final now = _clock();
+    if (g.isChoreDone(c, now)) {
+      final start = g.periodStart(c.period, now);
+      marks.removeWhere((_, m) => m.choreId == c.id && !m.at.isBefore(start));
+    } else {
+      final week = g.weekKey(now);
+      final id = DoneMark.idFor(c, week);
+      marks[id] = DoneMark(
+        id: id,
+        gameId: g.id,
+        choreId: c.id,
+        at: now,
+        week: c.isBoss ? week : null,
+        income: c.isBoss ? g.bossIncome(c) : null,
+      );
+    }
     commit();
   }
 

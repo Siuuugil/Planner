@@ -140,4 +140,48 @@ void main() {
     final store = await open();
     expect(store.pending.keys, ['old']);
   });
+
+  test('두 기기에서 서로 다른 숙제를 체크해도 둘 다 남는다 (완료 기록 분리)', () async {
+    // 기기 A
+    SharedPreferences.setMockInitialValues({});
+    final a = AppStore(await SharedPreferences.getInstance(), clock: () => now);
+    a.games.add(Game(id: 'g', name: '메이플', resetHour: 0, chores: [
+      Chore(id: 'c1', title: '몬파', period: ChorePeriod.daily),
+      Chore(id: 'c2', title: '우르스', period: ChorePeriod.daily),
+    ]));
+    a.commit();
+    final gameRow = a.pending['g']!;
+
+    // 기기 B: 같은 게임을 받은 상태
+    SharedPreferences.setMockInitialValues({});
+    final b = AppStore(await SharedPreferences.getInstance(), clock: () => now);
+    b.applyRemote([gameRow]);
+    a.markPushed(a.pending.values.toList());
+
+    // A는 c1, B는 c2를 체크
+    a.toggleChore(a.games.single, a.games.single.chores[0]);
+    b.toggleChore(b.games.single, b.games.single.chores[1]);
+    // 게임 레코드는 바뀌지 않고 완료 기록만 올라간다
+    expect(a.pending.keys, ['done:c1']);
+    expect(b.pending.keys, ['done:c2']);
+
+    // 서로 받기
+    a.applyRemote(b.pending.values);
+    b.applyRemote(a.pending.values);
+    for (final s in [a, b]) {
+      final g = s.games.single;
+      expect(g.chores.every((c) => g.isChoreDone(c, now)), isTrue);
+    }
+  });
+
+  test('예전 데이터의 완료 상태(lastDone)는 완료 기록으로 옮겨진다', () async {
+    SharedPreferences.setMockInitialValues({
+      'app_data_v1': '{"schedules":[],"games":[{"id":"g","name":"메이플","resetHour":0,'
+          '"chores":[{"id":"c","title":"몬파","period":"daily","lastDone":"${now.toLocal().toIso8601String()}"}]}]}',
+    });
+    final s = AppStore(await SharedPreferences.getInstance(), clock: () => now);
+    expect(s.marks.keys, ['done:c']);
+    expect(s.games.single.isChoreDone(s.games.single.chores.single, now), isTrue);
+    expect(s.pending.keys, containsAll(['g', 'done:c']));
+  });
 }

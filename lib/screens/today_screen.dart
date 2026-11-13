@@ -10,6 +10,7 @@ import '../widgets/maple_widgets.dart';
 import '../widgets/schedule_widgets.dart';
 import '../widgets/task_widgets.dart';
 import 'account_screen.dart';
+import 'ai_screen.dart';
 import 'settings_screen.dart';
 
 /// 홈: 오늘 할 일(일정·마감 할 일·숙제)을 한 목록으로 + 결정석·캐릭터 위젯
@@ -117,6 +118,14 @@ class TodayScreen extends StatelessWidget {
                               style: Ui.title(26),
                             ),
                           ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'AI 비서',
+                        icon: const Icon(Icons.auto_awesome, color: Ui.accent),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AiScreen()),
                         ),
                       ),
                       IconButton(

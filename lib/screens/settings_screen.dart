@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../data/store_scope.dart';
+import '../ai/ai_service.dart';
+import '../ai/claude_cli.dart';
 import '../maple/maple_service.dart';
 import '../notify/notify_service.dart';
 import '../ui/kit.dart';
@@ -38,6 +40,7 @@ class SettingsScreen extends StatelessWidget {
             _UpcomingPanel(notify),
           ],
           if (maple != null) _NexonKeyPanel(maple),
+          if (AiScope.of(context) case final ai? when ai.supported) _AiPanel(ai),
         ],
       ),
     );
@@ -228,6 +231,70 @@ class _NexonKeyPanelState extends State<_NexonKeyPanel> {
                 'API 키는 중계 서버에 저장되지 않아요.',
                 style: TextStyle(color: Ui.subtext, fontSize: 12),
               ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// AI (Claude Code CLI) 연결 설정 — PC 앱에서만 보인다
+class _AiPanel extends StatefulWidget {
+  const _AiPanel(this.ai);
+
+  final AiService ai;
+
+  @override
+  State<_AiPanel> createState() => _AiPanelState();
+}
+
+class _AiPanelState extends State<_AiPanel> {
+  late final _path = TextEditingController(text: widget.ai.executable);
+  String? _status;
+
+  @override
+  void dispose() {
+    _path.dispose();
+    super.dispose();
+  }
+
+  Future<void> _check() async {
+    widget.ai.executable = _path.text;
+    setState(() => _status = '확인 중…');
+    try {
+      final v = await widget.ai.checkCli();
+      if (mounted) setState(() => _status = '연결됨: $v');
+    } on ClaudeCliException catch (e) {
+      if (mounted) setState(() => _status = e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSection(
+      title: 'AI (Claude Code CLI)',
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'AI 기능은 이 PC에 설치된 Claude Code로 실행돼요 (내 Claude 구독 사용, 따로 API 비용 없음).\n'
+            '1. Claude Code 설치 (claude.com/claude-code)\n'
+            '2. 터미널에서 claude 를 한 번 실행해 로그인\n'
+            '3. 아래 "연결 확인"',
+            style: TextStyle(color: Ui.subtext, fontSize: 13, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _path,
+            decoration: const InputDecoration(labelText: 'claude 실행 파일 (보통 그대로 두면 돼요)'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(onPressed: _check, child: const Text('연결 확인')),
+          if (_status != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_status!, style: const TextStyle(fontSize: 13)),
             ),
         ],
       ),

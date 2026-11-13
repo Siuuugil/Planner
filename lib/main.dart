@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'ai/ai_service.dart';
 import 'config.dart';
 import 'data/app_store.dart';
 import 'data/store_scope.dart';
@@ -36,17 +37,19 @@ Future<void> main() async {
             return ((data['status'] as num).toInt(), data['body'] as String);
           },
   );
-  runApp(MyPlannerApp(store: store, sync: sync, notify: notify, maple: maple));
+  final ai = await AiService.open(store);
+  runApp(MyPlannerApp(store: store, sync: sync, notify: notify, maple: maple, ai: ai));
   maple.refreshStale();
 }
 
 class MyPlannerApp extends StatelessWidget {
-  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple});
+  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai});
 
   final AppStore store;
   final SyncService? sync;
   final NotifyService? notify;
   final MapleService? maple;
+  final AiService? ai;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +72,7 @@ class MyPlannerApp extends StatelessWidget {
     Widget root = app;
     if (notify != null) root = NotifyScope(notify: notify!, child: root);
     if (maple != null) root = MapleScope(maple: maple!, child: root);
+    if (ai != null) root = AiScope(ai: ai!, child: root);
     if (sync != null) root = SyncScope(sync: sync!, child: root);
     return root;
   }

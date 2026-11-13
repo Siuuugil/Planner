@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../maple/maple_service.dart';
 import '../maple/nexon_api.dart';
+import '../models/game.dart';
 import '../models/maple_character.dart';
 import '../ui/kit.dart';
 
@@ -204,6 +205,53 @@ class _SearchDialogState extends State<_SearchDialog> {
             child: Text(already ? '이미 추가됨' : '내 캐릭터로 추가'),
           ),
       ],
+    );
+  }
+}
+
+/// 보스 아이콘 (게임 내 25px 아이콘을 도트 그대로 확대). [dim]이면 흑백·반투명.
+class BossIcon extends StatelessWidget {
+  const BossIcon(this.boss, {super.key, this.size = 40, this.dim = false});
+
+  /// '루시드' 처럼 난이도 없는 보스 이름 ('하드 루시드'도 받아서 잘라 쓴다)
+  final String boss;
+  final double size;
+  final bool dim;
+
+  static const _grey = ColorFilter.matrix([
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0, 0, 0, 1, 0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    final name = splitBossName(boss).$2;
+    final icon = bossIconOf(name);
+    Widget child = icon == null
+        ? Center(
+            child: Text(name.characters.first,
+                style: TextStyle(fontSize: size * 0.42, fontWeight: FontWeight.w800, color: Ui.subtext)),
+          )
+        : Image.asset(
+            'assets/bosses/$icon.png',
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.none,
+          );
+    if (dim) child = Opacity(opacity: 0.45, child: ColorFiltered(colorFilter: _grey, child: child));
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Ui.field,
+        borderRadius: BorderRadius.circular(size * 0.26),
+        border: Border.all(color: dim ? Ui.line : const Color(0x22000000)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
     );
   }
 }

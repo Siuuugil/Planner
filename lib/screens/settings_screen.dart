@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../data/store_scope.dart';
 import '../maple/maple_service.dart';
 import '../notify/notify_service.dart';
 import '../ui/kit.dart';
@@ -18,6 +19,15 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
+          AppSection(
+            title: '화면',
+            child: SwitchListTile(
+              title: const Text('게임 숨기기 (회사 모드)'),
+              subtitle: const Text('홈·캘린더에서 게임 일정·숙제를 숨기고 메이플 탭도 감춰요. 이 기기에만 적용돼요.'),
+              value: StoreScope.of(context).hideGames,
+              onChanged: (v) => StoreScope.read(context).hideGames = v,
+            ),
+          ),
           if (notify == null)
             const AppSection(
               title: '알림',

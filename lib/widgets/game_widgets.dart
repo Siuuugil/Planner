@@ -36,6 +36,24 @@ class ChoreTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final done = game.isChoreDone(chore, DateTime.now());
+    if (chore.isBoss) {
+      // 보스 수확: 아이콘 + 1인당 수익, 오른쪽 체크
+      return ListTile(
+        contentPadding: const EdgeInsets.fromLTRB(16, 2, 4, 2),
+        leading: BossIcon(chore.title, size: 42, dim: done),
+        title: Text(
+          chore.title,
+          style: done ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext) : null,
+        ),
+        subtitle: Text([
+          koreanNumber(game.bossIncome(chore)),
+          if (chore.partySize > 1) '${chore.partySize}인 파티',
+        ].join(' · ')),
+        trailing: QuestMark(done: done, onTap: () => store.toggleChore(game, chore)),
+        onTap: () => store.toggleChore(game, chore),
+        onLongPress: () => showBossChoreEditor(context, game, existing: chore),
+      );
+    }
     return ListTile(
       leading: QuestMark(done: done, onTap: () => store.toggleChore(game, chore)),
       title: Text(
@@ -44,27 +62,18 @@ class ChoreTile extends StatelessWidget {
             ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
             : null,
       ),
-      subtitle: Text(chore.isBoss
-          ? [
-              '💎 ${koreanNumber(game.bossIncome(chore))}',
-              ?chore.charName,
-              if (chore.partySize > 1) '${chore.partySize}인 파티',
-            ].join(' · ')
-          : [
-              if (showGame) game.name,
-              chore.period == ChorePeriod.daily ? '일일 퀘스트' : '주간 퀘스트',
-            ].join(' · ')),
+      subtitle: Text([
+        if (showGame) game.name,
+        chore.period == ChorePeriod.daily ? '일일 숙제' : '주간 숙제',
+      ].join(' · ')),
       onTap: () => store.toggleChore(game, chore),
-      onLongPress: () => chore.isBoss
-          ? showBossChoreEditor(context, game, existing: chore)
-          : showChoreEditor(context, game, existing: chore),
+      onLongPress: () => showChoreEditor(context, game, existing: chore),
       trailing: showGame
           ? null
           : IconButton(
+              tooltip: '수정',
               icon: const Icon(Icons.edit_outlined, size: 20),
-              onPressed: () => chore.isBoss
-                  ? showBossChoreEditor(context, game, existing: chore)
-                  : showChoreEditor(context, game, existing: chore),
+              onPressed: () => showChoreEditor(context, game, existing: chore),
             ),
     );
   }

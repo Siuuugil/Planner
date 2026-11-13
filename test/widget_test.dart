@@ -62,7 +62,7 @@ void main() {
     final store = await AppStore.open();
     await tester.pumpWidget(MyPlannerApp(store: store));
 
-    expect(find.text('지금 할 일'), findsOneWidget);
+    expect(find.text('일상 · 업무'), findsOneWidget);
     await tester.tap(find.text('할 일').last);
     await tester.pumpAndSettle();
     expect(find.text('할 일이 없어요'), findsOneWidget);
@@ -72,5 +72,24 @@ void main() {
     await tester.tap(find.text('결정석'));
     await tester.pumpAndSettle();
     expect(find.text('보스 선택하기'), findsOneWidget);
+  });
+
+  testWidgets('게임 숨기기: 메이플 탭과 게임 섹션이 사라짐', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await initializeDateFormatting('ko_KR');
+    final store = await AppStore.open();
+    store.games.add(Game(id: 'g', name: '메이플스토리', chores: [
+      Chore(id: 'c', title: '몬스터 파크', period: ChorePeriod.daily),
+    ]));
+    store.commit();
+    await tester.pumpWidget(MyPlannerApp(store: store));
+    expect(find.text('게임'), findsOneWidget);
+    expect(find.text('메이플'), findsOneWidget);
+
+    store.hideGames = true;
+    await tester.pumpAndSettle();
+    expect(find.text('게임'), findsNothing);
+    expect(find.text('메이플'), findsNothing);
+    expect(store.hideGames, isTrue);
   });
 }

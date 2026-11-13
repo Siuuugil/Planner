@@ -38,14 +38,15 @@ class TodayScreen extends StatelessWidget {
             (g, p, g.chores.where((c) => c.period == p && !c.isBoss).toList()),
     ];
 
-    // 목록: 할 것 먼저, 끝낸 것은 아래
+    final hide = store.hideGames;
+    final lifeSchedules = schedules.where((s) => s.gameId == null).toList();
+    final gameSchedules = schedules.where((s) => s.gameId != null).toList();
+
+    // 일상·업무 목록: 할 것 먼저, 끝낸 것은 아래
     final open = <Widget>[];
     final done = <Widget>[];
-    var choreLeft = 0, choreDone = 0;
-
-    for (final s in schedules) {
-      final row = _ScheduleRow(s);
-      (s.done ? done : open).add(row);
+    for (final s in lifeSchedules) {
+      (s.done ? done : open).add(_ScheduleRow(s));
     }
     for (final t in dueTasks.where((t) => t.due!.isBefore(today))) {
       open.add(_TaskRow(t));
@@ -53,20 +54,26 @@ class TodayScreen extends StatelessWidget {
     for (final t in dueTasks.where((t) => !t.due!.isBefore(today))) {
       (t.done ? done : open).add(_TaskRow(t));
     }
+
+    // 게임 목록 (따로)
+    final gameOpen = <Widget>[];
+    final gameDone = <Widget>[];
+    var gameLeft = 0, gameFinished = 0;
+    for (final s in gameSchedules) {
+      (s.done ? gameDone : gameOpen).add(_ScheduleRow(s));
+      s.done ? gameFinished++ : gameLeft++;
+    }
     for (final (g, p, list) in choreGroups) {
       final left = list.where((c) => !g.isChoreDone(c, now)).length;
-      choreLeft += left;
-      choreDone += list.length - left;
-      (left == 0 ? done : open).add(_ChoreGroupRow(g, p, list));
+      gameLeft += left;
+      gameFinished += list.length - left;
+      (left == 0 ? gameDone : gameOpen).add(_ChoreGroupRow(g, p, list));
     }
 
-    final openCount = schedules.where((s) => !s.done).length +
-        dueTasks.where((t) => !t.done).length +
-        choreLeft;
-    final doneCount = schedules.where((s) => s.done).length +
-        dueTasks.where((t) => t.done).length +
-        choreDone;
+    final openCount = lifeSchedules.where((s) => !s.done).length + dueTasks.where((t) => !t.done).length;
+    final doneCount = lifeSchedules.where((s) => s.done).length + dueTasks.where((t) => t.done).length;
     final total = openCount + doneCount;
+    final hasGame = gameOpen.isNotEmpty || gameDone.isNotEmpty;
 
     final cg = store.crystalGame();
     final boss = cg?.chores.where((c) => c.isBoss).toList() ?? [];
@@ -112,6 +119,18 @@ class TodayScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                      IconButton(
+                        tooltip: hide ? '게임 보이기' : '게임 숨기기 (회사 모드)',
+                        icon: Icon(hide ? Icons.videogame_asset_off_outlined : Icons.sports_esports_outlined,
+                            color: hide ? Ui.subtext : Ui.purple),
+                        onPressed: () {
+                          store.hideGames = !hide;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(!hide ? '게임을 숨겼어요 (홈·캘린더·탭)' : '게임을 다시 보여줘요'),
+                            duration: const Duration(seconds: 2),
+                          ));
+                        },
+                      ),
                       const SyncButton(),
                       IconButton(
                         tooltip: '설정',
@@ -129,12 +148,11 @@ class TodayScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
                     child: GaugeBar(
                       value: doneCount / total,
-                      label: '$doneCount개 완료 · 일정 ${schedules.length} · 할 일 ${dueTasks.length}'
-                          '${choreGroups.isEmpty ? '' : ' · 숙제 ${choreLeft + choreDone}'}',
+                      label: '$doneCount개 완료 · 일정 ${lifeSchedules.length} · 할 일 ${dueTasks.length}',
                     ),
                   ),
                 AppSection(
-                  title: '지금 할 일',
+                  title: '일상 · 업무',
                   child: open.isEmpty && done.isEmpty
                       ? const EmptyHint('오늘은 비어 있어요. + 로 일정이나 할 일을 추가해 보세요.')
                       : Column(children: [
@@ -143,7 +161,17 @@ class TodayScreen extends StatelessWidget {
                           ...done.map((w) => Opacity(opacity: 0.45, child: w)),
                         ]),
                 ),
-                if (boss.isNotEmpty || char != null)
+                if (!hide && hasGame)
+                  AppSection(
+                    title: '게임',
+                    accent: Ui.purple,
+                    trailing: CountBadge('$gameFinished/${gameLeft + gameFinished}'),
+                    child: Column(children: [
+                      ...gameOpen,
+                      ...gameDone.map((w) => Opacity(opacity: 0.45, child: w)),
+                    ]),
+                  ),
+                if (!hide && (boss.isNotEmpty || char != null))
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -289,8 +317,8 @@ class _ScheduleRow extends StatelessWidget {
     return _Row(
       lead: s.allDay ? '종일' : DateFormat('HH:mm').format(s.start),
       title: s.title,
-      subtitle: [if (game != null) game.name, '일정', if (s.memo.isNotEmpty) s.memo].join(' · '),
-      subtitleColor: game != null ? Ui.maple : Ui.subtext,
+      subtitle: [if (game != null) '게임 · ${game.name}' else '일정', if (s.memo.isNotEmpty) s.memo].join(' · '),
+      subtitleColor: game != null ? Ui.purple : Ui.subtext,
       strike: s.done,
       onTap: () => showScheduleEditor(context, existing: s),
       trailing: CheckCircle(
@@ -350,11 +378,11 @@ class _ChoreGroupRow extends StatelessWidget {
     final shown = left.isEmpty ? chores : left;
     return _Row(
       lead: period == ChorePeriod.daily ? '일일' : '주간',
-      leadColor: Ui.maple,
+      leadColor: Ui.purple,
       title: shown.map((c) => c.title).join(' · '),
       subtitle: '${g.name} 숙제 · '
           '${period == ChorePeriod.daily ? '매일 ${g.resetHour}시' : '${_weekday(g.weeklyResetWeekday)}요일'} 초기화',
-      subtitleColor: Ui.maple,
+      subtitleColor: Ui.purple,
       onTap: () => _open(context),
       trailing: SizedBox(
         width: 44,

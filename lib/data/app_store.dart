@@ -53,6 +53,14 @@ class AppStore extends ChangeNotifier {
   /// 데이터 소유 계정. 다른 계정으로 로그인하면 로컬 데이터를 비운다.
   String? ownerId;
 
+  /// 게임 숨기기 (회사 모드). 기기별 설정이라 동기화하지 않는다.
+  bool get hideGames => _prefs.getBool('hide_games') ?? false;
+
+  set hideGames(bool v) {
+    _prefs.setBool('hide_games', v);
+    notifyListeners();
+  }
+
   /// 사용자가 로컬에서 무언가를 바꿨을 때 호출 (동기화 예약용).
   VoidCallback? onLocalChange;
 

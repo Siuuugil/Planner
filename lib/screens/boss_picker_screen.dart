@@ -86,9 +86,17 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
           ),
           // 요약 + 프리셋
           Container(
-            margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: Ui.card, borderRadius: BorderRadius.circular(18)),
+            margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            padding: const EdgeInsets.fromLTRB(18, 16, 12, 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF23262F), Color(0xFF14161C)],
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 6))],
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -99,18 +107,31 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_char ?? '캐릭터 미지정',
-                              style: const TextStyle(fontSize: 13, color: Ui.subtext, fontWeight: FontWeight.w700)),
-                          Text('주간 ${koreanNumber(weeklySum)}', style: Ui.title(22)),
+                          Text('${_char ?? '캐릭터 미지정'} · 주간 결정석',
+                              style: const TextStyle(fontSize: 12.5, color: Color(0xFFA9ADB8), fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text(koreanNumber(weeklySum),
+                              style: const TextStyle(
+                                  fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.6, color: Colors.white)),
                           if (monthlySum > 0)
                             Text('월간 +${koreanNumber(monthlySum)}',
-                                style: const TextStyle(fontSize: 13, color: Ui.subtext)),
+                                style: const TextStyle(fontSize: 13, color: Color(0xFFE8B86A))),
                         ],
                       ),
                     ),
-                    Text(
-                      '${weekly.length}/$weeklyCrystalLimit',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: over ? Ui.red : Ui.text),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${weekly.length}/$weeklyCrystalLimit',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: over ? const Color(0xFFFF8A80) : Colors.white,
+                          ),
+                        ),
+                        const Text('판매 가능', style: TextStyle(fontSize: 11, color: Color(0xFFA9ADB8))),
+                      ],
                     ),
                   ],
                 ),
@@ -118,15 +139,31 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text('주간 결정석은 캐릭터당 $weeklyCrystalLimit개까지 팔 수 있어요',
-                        style: const TextStyle(fontSize: 12, color: Ui.red)),
+                        style: const TextStyle(fontSize: 12, color: Color(0xFFFF8A80))),
                   ),
                 const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (weekly.length / weeklyCrystalLimit).clamp(0, 1),
+                    minHeight: 6,
+                    color: over ? const Color(0xFFFF8A80) : const Color(0xFFE8B86A),
+                    backgroundColor: const Color(0xFF3A3E4A),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     for (final p in BossPreset.values) ...[
                       Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF30343F),
+                            minimumSize: const Size(0, 42),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                           onPressed: () => change(() => g.applyBossPreset(_char, p, newId)),
                           child: Text(p.label),
                         ),
@@ -135,6 +172,8 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
                     ],
                     IconButton(
                       tooltip: '전체 해제',
+                      color: Colors.white,
+                      disabledColor: const Color(0xFF5A5F6B),
                       onPressed: plan.isEmpty ? null : () => change(() => g.clearBosses(_char)),
                       icon: const Icon(Icons.restart_alt),
                     ),
@@ -235,15 +274,23 @@ class _BossRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final on = selected != null;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
+      decoration: BoxDecoration(
+        color: on ? const Color(0xFFFBF7F1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Row(
         children: [
+          BossIcon(def.name, size: 44, dim: !on),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(def.name,
+                Text(def.monthly ? '${def.name} · 월간' : def.name,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: on ? FontWeight.w700 : FontWeight.w500,
@@ -277,7 +324,11 @@ class _BossRow extends StatelessWidget {
               child: Container(
                 height: 36,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(color: Ui.field, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: Ui.card,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Ui.line),
+                ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text('$party인', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const Icon(Icons.expand_more, size: 18, color: Ui.subtext),

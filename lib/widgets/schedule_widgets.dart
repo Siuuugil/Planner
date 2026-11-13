@@ -45,17 +45,7 @@ class ScheduleTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: game == null
-          ? null
-          : Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Color(game.colorValue).withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Color(game.colorValue), width: 1.5),
-              ),
-              child: Text(game.name, style: const TextStyle(fontSize: 12)),
-            ),
+      trailing: game == null ? null : GameTag(game.name),
       onTap: () => showScheduleEditor(context, existing: schedule),
     );
   }
@@ -136,7 +126,7 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
       allDay: _allDay,
       memo: _memo.text.trim(),
       done: e?.done ?? false,
-      gameId: _gameId,
+      gameId: _gameId == '' ? store.mapleGame().id : _gameId,
     ));
     Navigator.pop(context);
   }
@@ -198,16 +188,34 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
                 value: _allDay,
                 onChanged: (v) => setState(() => _allDay = v),
               ),
-              DropdownButtonFormField<String?>(
-                initialValue: _gameId,
-                decoration: const InputDecoration(labelText: '연결된 게임'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('없음 (일반 일정)')),
-                  for (final g in store.games)
-                    DropdownMenuItem(value: g.id, child: Text(g.name)),
+              const SizedBox(height: 4),
+              SegmentedButton<bool>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: false, label: Text('일상·업무'), icon: Icon(Icons.work_outline, size: 18)),
+                  ButtonSegment(value: true, label: Text('게임'), icon: Icon(Icons.sports_esports_outlined, size: 18)),
                 ],
-                onChanged: (v) => setState(() => _gameId = v),
+                selected: {_gameId != null},
+                onSelectionChanged: (sel) => setState(() {
+                  if (sel.first) {
+                    _gameId = (store.findMapleGame() ?? (store.games.isEmpty ? null : store.games.first))?.id ?? '';
+                  } else {
+                    _gameId = null;
+                  }
+                }),
               ),
+              if (_gameId != null && store.games.length > 1) ...[
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: store.gameById(_gameId) == null ? store.games.first.id : _gameId,
+                  decoration: const InputDecoration(labelText: '어떤 게임'),
+                  items: [
+                    for (final g in store.games) DropdownMenuItem(value: g.id, child: Text(g.name)),
+                  ],
+                  onChanged: (v) => setState(() => _gameId = v),
+                ),
+              ],
+              const SizedBox(height: 10),
               TextField(
                 controller: _memo,
                 decoration: const InputDecoration(labelText: '메모'),
@@ -235,4 +243,22 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
       ],
     );
   }
+}
+
+/// 게임 일정·숙제임을 분명히 보여주는 보라색 태그
+class GameTag extends StatelessWidget {
+  const GameTag(this.name, {super.key});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3EEFF),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text('게임 · $name',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Ui.purple)),
+      );
 }

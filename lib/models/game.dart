@@ -144,9 +144,12 @@ const bossDifficulties = ['이지', '노멀', '하드', '카오스', '익스트�
 
 /// 보스 선택 화면에 나오는 보스와 난이도 (주간 결정석 대상)
 class BossDef {
-  const BossDef(this.name, this.difficulties, {this.monthly = false, this.grandis = false});
+  const BossDef(this.name, this.difficulties, this.icon, {this.monthly = false, this.grandis = false});
 
   final String name;
+
+  /// `assets/bosses/<icon>.png`
+  final String icon;
   final List<String> difficulties;
   final bool monthly;
 
@@ -155,32 +158,40 @@ class BossDef {
 }
 
 const bossCatalog = <BossDef>[
-  BossDef('자쿰', ['카오스']),
-  BossDef('매그너스', ['하드']),
-  BossDef('파풀라투스', ['카오스']),
-  BossDef('피에르', ['카오스']),
-  BossDef('반반', ['카오스']),
-  BossDef('블러디퀸', ['카오스']),
-  BossDef('벨룸', ['카오스']),
-  BossDef('스우', ['노멀', '하드', '익스트림']),
-  BossDef('데미안', ['노멀', '하드']),
-  BossDef('가디언 엔젤 슬라임', ['노멀', '카오스']),
-  BossDef('루시드', ['이지', '노멀', '하드']),
-  BossDef('윌', ['이지', '노멀', '하드']),
-  BossDef('더스크', ['노멀', '카오스']),
-  BossDef('진 힐라', ['노멀', '하드']),
-  BossDef('듄켈', ['노멀', '하드']),
-  BossDef('선택받은 세렌', ['노멀', '하드', '익스트림'], grandis: true),
-  BossDef('감시자 칼로스', ['이지', '노멀', '카오스', '익스트림'], grandis: true),
-  BossDef('최초의 대적자', ['이지', '노멀', '하드', '익스트림'], grandis: true),
-  BossDef('카링', ['이지', '노멀', '하드', '익스트림'], grandis: true),
-  BossDef('찬란한 흉성', ['노멀', '하드'], grandis: true),
-  BossDef('벨로나', ['이지', '노멀', '하드'], grandis: true),
-  BossDef('림보', ['노멀', '하드', '익스트림'], grandis: true),
-  BossDef('발드릭스', ['노멀', '하드', '익스트림'], grandis: true),
-  BossDef('유피테르', ['노멀', '하드'], grandis: true),
-  BossDef('검은 마법사', ['하드', '익스트림'], monthly: true),
+  BossDef('자쿰', ['카오스'], 'zzakum'),
+  BossDef('매그너스', ['하드'], 'magnus'),
+  BossDef('파풀라투스', ['카오스'], 'papulatus'),
+  BossDef('피에르', ['카오스'], 'pierre'),
+  BossDef('반반', ['카오스'], 'von_bon'),
+  BossDef('블러디퀸', ['카오스'], 'crimson_queen'),
+  BossDef('벨룸', ['카오스'], 'vellum'),
+  BossDef('스우', ['노멀', '하드', '익스트림'], 'lotus'),
+  BossDef('데미안', ['노멀', '하드'], 'damien'),
+  BossDef('가디언 엔젤 슬라임', ['노멀', '카오스'], 'guardian_angel_slime'),
+  BossDef('루시드', ['이지', '노멀', '하드'], 'lucid'),
+  BossDef('윌', ['이지', '노멀', '하드'], 'will'),
+  BossDef('더스크', ['노멀', '카오스'], 'gloom'),
+  BossDef('진 힐라', ['노멀', '하드'], 'verus_hilla'),
+  BossDef('듄켈', ['노멀', '하드'], 'darknell'),
+  BossDef('선택받은 세렌', ['노멀', '하드', '익스트림'], 'chosen_seren', grandis: true),
+  BossDef('감시자 칼로스', ['이지', '노멀', '카오스', '익스트림'], 'kalos_the_guardian', grandis: true),
+  BossDef('최초의 대적자', ['이지', '노멀', '하드', '익스트림'], 'the_first_adversary', grandis: true),
+  BossDef('카링', ['이지', '노멀', '하드', '익스트림'], 'kaling', grandis: true),
+  BossDef('찬란한 흉성', ['노멀', '하드'], 'radiant_malefic_star', grandis: true),
+  BossDef('벨로나', ['이지', '노멀', '하드'], 'bellona', grandis: true),
+  BossDef('림보', ['노멀', '하드', '익스트림'], 'limbo', grandis: true),
+  BossDef('발드릭스', ['노멀', '하드', '익스트림'], 'baldrix', grandis: true),
+  BossDef('유피테르', ['노멀', '하드'], 'jupiter', grandis: true),
+  BossDef('검은 마법사', ['하드', '익스트림'], 'black_mage', monthly: true),
 ];
+
+/// 보스 이름 → 아이콘 파일 이름 (없으면 null)
+String? bossIconOf(String boss) {
+  for (final b in bossCatalog) {
+    if (b.name == boss) return b.icon;
+  }
+  return null;
+}
 
 enum BossPreset {
   geommilsol('검밑솔'),

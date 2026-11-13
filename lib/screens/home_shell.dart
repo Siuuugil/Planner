@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/store_scope.dart';
 import '../ui/kit.dart';
 import 'calendar_screen.dart';
 import 'maple_screen.dart';
@@ -29,11 +30,15 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 720;
+    // 게임 숨기기(회사 모드)면 메이플 탭도 숨긴다
+    final hide = StoreScope.of(context).hideGames;
+    final items = hide ? _items.take(3).toList() : _items;
+    if (_index >= items.length) _index = 0;
     final pages = [
       TodayScreen(onOpenMaple: () => _go(3)),
       const CalendarScreen(),
       const TaskListScreen(),
-      const MapleScreen(),
+      if (!hide) const MapleScreen(),
     ];
     final body = IndexedStack(index: _index, children: pages);
 
@@ -46,7 +51,7 @@ class _HomeShellState extends State<HomeShell> {
               onDestinationSelected: _go,
               labelType: NavigationRailLabelType.all,
               destinations: [
-                for (final (icon, selected, label) in _items)
+                for (final (icon, selected, label) in items)
                   NavigationRailDestination(
                     icon: Icon(icon),
                     selectedIcon: Icon(selected),
@@ -69,7 +74,7 @@ class _HomeShellState extends State<HomeShell> {
           selectedIndex: _index,
           onDestinationSelected: _go,
           destinations: [
-            for (final (icon, selected, label) in _items)
+            for (final (icon, selected, label) in items)
               NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
           ],
         ),

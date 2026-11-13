@@ -114,27 +114,55 @@ class _WeekPanel extends StatelessWidget {
     final reset = DateTime(start.year, start.month, start.day + 7, g.resetHour);
     final left = reset.difference(now);
 
-    return AppSection(
-      title: '이번 주',
-      accent: const Color(0xFF2FA4C7),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+    final rate = expected == 0 ? 0.0 : earned / expected;
+    const muted = Color(0xFFA9ADB8);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF23262F), Color(0xFF14161C)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 6))],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(koreanNumber(earned), style: const TextStyle(fontSize: 30, color: Color(0xFF1E62D0))),
-          Text('예상 ${koreanNumber(expected)} 메소', style: const TextStyle(color: Ui.subtext)),
-          const SizedBox(height: 8),
-          GaugeBar(
-            value: expected == 0 ? 0 : earned / expected,
-            kind: GaugeKind.mp,
-            height: 20,
-            label: expected == 0 ? '등록된 보스 없음' : '${(earned / expected * 100).toStringAsFixed(1)}%',
+          Row(
+            children: [
+              const Expanded(
+                child: Text('이번 주 결정석 수익',
+                    style: TextStyle(fontSize: 13, color: muted, fontWeight: FontWeight.w600)),
+              ),
+              Text(
+                '초기화까지 ${left.inDays}일 ${left.inHours % 24}시간',
+                style: const TextStyle(fontSize: 12, color: muted),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
+          Text(koreanNumber(earned),
+              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -0.8, color: Colors.white)),
+          Text('예상 ${koreanNumber(expected)} 메소 · ${(rate * 100).toStringAsFixed(0)}%',
+              style: const TextStyle(fontSize: 13.5, color: Color(0xFFE8B86A))),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: rate.clamp(0, 1),
+              minHeight: 8,
+              color: const Color(0xFFE8B86A),
+              backgroundColor: const Color(0xFF3A3E4A),
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(
-            '${weekdayNames[g.weeklyResetWeekday - 1]}요일 ${g.resetHour}시 초기화까지 '
-            '${left.inDays}일 ${left.inHours % 24}시간',
-            style: const TextStyle(fontSize: 13, color: Ui.subtext),
+            '보스 ${boss.where((c) => g.isChoreDone(c, now)).length}/${boss.length} 처치 · '
+            '${weekdayNames[g.weeklyResetWeekday - 1]}요일 ${g.resetHour}시 초기화',
+            style: const TextStyle(fontSize: 12.5, color: muted),
           ),
         ],
       ),
@@ -192,11 +220,10 @@ class _HistoryPanel extends StatelessWidget {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: i == weeks.length - 1
-                                    ? const [Ui.accent, Ui.accent]
-                                    : const [Color(0xFF9BE3F5), Color(0xFF2FA4C7)],
+                                    ? const [Color(0xFFF0C987), Color(0xFFE0A84E)]
+                                    : const [Color(0xFF4B5060), Color(0xFF2A2D36)],
                               ),
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                              border: Border.all(color: Ui.text, width: 1.2),
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                             ),
                           ),
                           const SizedBox(height: 4),

@@ -198,15 +198,18 @@ class AppSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 그림자는 바깥 상자, 배경은 Material (목록 터치 효과가 보이도록)
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: Ui.card,
         borderRadius: BorderRadius.circular(18),
         boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 2, offset: Offset(0, 1))],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: Material(
+        color: Ui.card,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -239,6 +242,7 @@ class AppSection extends StatelessWidget {
             ),
           Padding(padding: padding, child: child),
         ],
+        ),
       ),
     );
   }

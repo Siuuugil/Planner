@@ -85,13 +85,14 @@ List<Reminder> planReminders(
   if (s.scheduleLeadMinutes > 0) {
     for (final e in store.schedules) {
       if (e.done) continue;
+      final kind = e.gameId == null ? '📅 일정' : '🎮 게임 일정';
       if (e.allDay) {
-        add(Reminder('s:${e.id}', atHour(e.start), '📅 오늘 일정', e.title));
+        add(Reminder('s:${e.id}', atHour(e.start), '$kind · 오늘', e.title));
       } else {
         add(Reminder(
           's:${e.id}',
           e.start.subtract(Duration(minutes: s.scheduleLeadMinutes)),
-          '📅 ${s.scheduleLeadMinutes}분 뒤 일정',
+          '$kind · ${s.scheduleLeadMinutes}분 뒤',
           e.title,
         ));
       }

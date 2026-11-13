@@ -136,8 +136,13 @@ class SyncService extends ChangeNotifier {
   Future<String?> signUp(String email, String password) async {
     try {
       final res = await client.auth.signUp(email: email, password: password);
+      // 이미 가입된 이메일이면 Supabase는 오류 대신 identities가 빈 사용자를 돌려주고 메일도 안 보낸다
+      if (res.user != null && (res.user!.identities?.isEmpty ?? false)) {
+        return '이미 가입된 이메일이에요. "로그인"으로 들어와 주세요. (확인 메일은 다시 오지 않아요)';
+      }
       if (res.session == null) {
-        return '확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.';
+        return '확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요. '
+            '메일이 안 보이면 스팸함도 확인해 주세요.';
       }
       return null;
     } on AuthException catch (e) {

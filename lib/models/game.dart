@@ -176,6 +176,9 @@ const defaultBossPrices = <(String, int, bool)>[
   ('노멀 유피테르', 1560000000, false), ('하드 유피테르', 5387000000, false),
 ];
 
+/// 에오스 결정석을 메포로 바꿔 본캐 월드로 넘길 때 실제로 받는 비율
+const defaultEosRate = 0.55;
+
 /// 주간 결정석 판매 제한 (캐릭터당, 월간 보스 제외)
 const weeklyCrystalLimit = 12;
 
@@ -360,10 +363,13 @@ class Game {
     List<Goal>? goals,
     List<Chore>? chores,
     List<BossPrice>? bosses,
+    Map<String, String>? charWorlds,
+    this.eosRate = defaultEosRate,
     Map<String, int>? crystalWeeks,
   })  : goals = goals ?? [],
         chores = chores ?? [],
         bosses = bosses ?? [],
+        charWorlds = charWorlds ?? {},
         crystalWeeks = crystalWeeks ?? {};
 
   final String id;
@@ -380,6 +386,14 @@ class Game {
 
   /// 보스 결정석 가격표
   final List<BossPrice> bosses;
+
+  /// 캐릭터 이름 → 월드 구분. 'eos'면 에오스 캐릭터 (결정석을 메포로 바꿔 본캐 월드로 넘김)
+  final Map<String, String> charWorlds;
+
+  /// 에오스 결정석 → 본캐 월드(스카니아 등) 메소 환산 비율
+  double eosRate;
+
+  bool isEos(String? charName) => charName != null && charWorlds[charName] == 'eos';
 
   /// 예전 버전이 저장한 주간 결정석 수익 (주 시작일 → 메소). 이제는 읽기만 한다.
   final Map<String, int> crystalWeeks;
@@ -514,6 +528,12 @@ class Game {
 
   /// 보스 1회 클리어 수익 (파티 인원으로 나눔)
   int bossIncome(Chore c) {
+    final raw = bossIncomeRaw(c);
+    return isEos(c.charName) ? (raw * eosRate).round() : raw;
+  }
+
+  /// 결정석 1개 판매가를 파티 인원으로 나눈 값 (에오스 환산 전)
+  int bossIncomeRaw(Chore c) {
     final b = bossById(c.bossId);
     if (b == null) return 0;
     return b.price ~/ (c.partySize < 1 ? 1 : c.partySize);
@@ -567,6 +587,8 @@ class Game {
         'chores': chores.map((c) => c.toJson()).toList(),
         if (bosses.isNotEmpty) 'bosses': bosses.map((b) => b.toJson()).toList(),
         if (crystalWeeks.isNotEmpty) 'crystalWeeks': crystalWeeks,
+        if (charWorlds.isNotEmpty) 'charWorlds': charWorlds,
+        if (eosRate != defaultEosRate) 'eosRate': eosRate,
       };
 
   factory Game.fromJson(Map<String, dynamic> j) => Game(
@@ -585,6 +607,8 @@ class Game {
         bosses: (j['bosses'] as List? ?? [])
             .map((e) => BossPrice.fromJson(e as Map<String, dynamic>))
             .toList(),
+        charWorlds: (j['charWorlds'] as Map? ?? {}).cast<String, String>(),
+        eosRate: (j['eosRate'] as num?)?.toDouble() ?? defaultEosRate,
         crystalWeeks: (j['crystalWeeks'] as Map? ?? {})
             .map((k, v) => MapEntry(k as String, (v as num).toInt())),
       );

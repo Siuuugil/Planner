@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_planner/data/app_store.dart';
 import 'package:game_planner/models/game.dart';
+import 'package:game_planner/models/maple_character.dart';
 import 'package:game_planner/notify/reminders.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -170,5 +171,37 @@ void main() {
     expect(g.bosses.map((b) => b.id), ['x', 'new0']);
     expect(g.bossById('x')!.name, '하드 루시드');
     expect(g.fixDuplicateIds(() => 'z'), isFalse);
+  });
+
+  group('에오스 (메포 환산)', () {
+    test('에오스 캐릭터 수익은 ×0.55, 원금도 따로', () {
+      final g = maple()..charWorlds['단풍이'] = 'eos';
+      final wil = g.chores[1]; // 하드 윌 12억 솔로
+      expect(g.bossIncomeRaw(wil), 1200000000);
+      expect(g.bossIncome(wil), 660000000);
+      g.eosRate = 0.6;
+      expect(g.bossIncome(wil), 720000000);
+      final back = Game.fromJson(g.toJson());
+      expect((back.isEos('단풍이'), back.eosRate), (true, 0.6));
+      expect(Game.fromJson(maple().toJson()).eosRate, defaultEosRate);
+    });
+
+    test('넥슨 캐릭터 월드가 에오스면 자동 지정, 직접 끈 건 유지, 체크 수익은 환산값', () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = AppStore(await SharedPreferences.getInstance());
+      final g = maple();
+      store.games.add(g);
+      store.characters.add(MapleCharacter(id: 'c', name: '단풍이', ocid: 'o', world: '에오스'));
+      store.commit();
+      expect(g.isEos('단풍이'), isTrue);
+
+      store.toggleChore(g, g.chores[1]);
+      expect(g.weekIncome[g.weekKey(DateTime.now())], 660000000);
+      expect(store.marks.values.single.income, 660000000);
+
+      g.charWorlds['단풍이'] = 'main';
+      store.commit();
+      expect(g.isEos('단풍이'), isFalse);
+    });
   });
 }

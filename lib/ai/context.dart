@@ -115,7 +115,9 @@ String mapleContext(AppStore store, DateTime now) {
       for (final c in e.value) {
         final price = g.bossById(c.bossId)?.price ?? 0;
         b.writeln('  · ${c.title}${c.partySize > 1 ? ' ${c.partySize}인 파티' : ' 솔로'}: '
-            '내 몫 ${koreanNumber(g.bossIncome(c))} (결정석 판매가 ${koreanNumber(price)})'
+            '내 몫 ${koreanNumber(g.bossIncome(c))}'
+            '${g.isEos(c.charName) ? ' (에오스 결정석 ${koreanNumber(g.bossIncomeRaw(c))}을 메포로 바꿔 본캐 월드로 넘긴 값, ×${g.eosRate})' : ''}'
+            ' (결정석 판매가 ${koreanNumber(price)})'
             ' — 이번 주 ${g.isChoreDone(c, now) ? '처치함' : '아직'}');
       }
     }

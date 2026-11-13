@@ -70,7 +70,7 @@ class CrystalScreen extends StatelessWidget {
     return [
       for (final e in byChar.entries)
         AppSection(
-          title: e.key,
+          title: g.isEos(e.key) ? '${e.key} · 에오스 (×${g.eosRate} 환산)' : e.key,
           accent: const Color(0xFFE8833A),
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
             CountBadge('${e.value.where((c) => g.isChoreDone(c, now)).length}/${e.value.length}'),
@@ -164,6 +164,9 @@ class _WeekPanel extends StatelessWidget {
             '${weekdayNames[g.weeklyResetWeekday - 1]}요일 ${g.resetHour}시 초기화',
             style: const TextStyle(fontSize: 12.5, color: muted),
           ),
+          if (boss.any((c) => g.isEos(c.charName)))
+            Text('에오스 결정석은 ×${g.eosRate}로 본캐 월드 메소로 환산해 합산했어요',
+                style: const TextStyle(fontSize: 12, color: muted)),
         ],
       ),
     );

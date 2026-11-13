@@ -46,7 +46,10 @@ class ChoreTile extends StatelessWidget {
           style: done ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext) : null,
         ),
         subtitle: Text([
-          koreanNumber(game.bossIncome(chore)),
+          if (game.isEos(chore.charName))
+            '결정석 ${koreanNumber(game.bossIncomeRaw(chore))} → 본캐 ${koreanNumber(game.bossIncome(chore))}'
+          else
+            koreanNumber(game.bossIncome(chore)),
           if (chore.partySize > 1) '${chore.partySize}인 파티',
         ].join(' · ')),
         trailing: QuestMark(done: done, onTap: () => store.toggleChore(game, chore)),

@@ -154,6 +154,13 @@ class AppStore extends ChangeNotifier {
       for (final c in g.chores) {
         c.lastDone = latest[c.id];
       }
+      // 넥슨에서 불러온 캐릭터의 월드가 에오스면 자동으로 에오스(메포 환산) 캐릭터로
+      for (final ch in characters) {
+        if (ch.world.contains('에오스') && !g.charWorlds.containsKey(ch.name) &&
+            g.chores.any((c) => c.isBoss && c.charName == ch.name)) {
+          g.charWorlds[ch.name] = 'eos';
+        }
+      }
       g.recomputeCrystals(now);
     }
   }

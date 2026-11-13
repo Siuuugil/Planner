@@ -223,13 +223,14 @@ String describeAction(Map<String, dynamic> a) => switch (a['type']) {
 
 /// AI 기능 (PC에서 Claude CLI 사용). 실행 경로는 기기별 설정.
 class AiService extends ChangeNotifier {
-  AiService(this.store, this._prefs, {this.askOverride}) {
+  AiService(this.store, this._prefs, {this.askOverride, bool? supportedOverride}) : _supported = supportedOverride {
     // 이 PC가 폰·웹의 대화 요청에 답한다 (PC 앱이 켜져 있을 때)
     if (supported) store.addListener(_scheduleRemote);
   }
 
   /// 테스트용: CLI 대신 답을 만든다
   final Future<Map<String, dynamic>> Function(String prompt)? askOverride;
+  final bool? _supported;
 
   static const _pathKey = 'claude_cli_path';
   static const _serveKey = 'serve_remote_chat';
@@ -242,7 +243,7 @@ class AiService extends ChangeNotifier {
   static Future<AiService> open(AppStore store) async =>
       AiService(store, await SharedPreferences.getInstance());
 
-  bool get supported => askOverride != null || ClaudeCli.supported;
+  bool get supported => _supported ?? (askOverride != null || ClaudeCli.supported);
 
   String get executable => _prefs.getString(_pathKey) ?? 'claude';
 

@@ -172,7 +172,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final phoneStore = AppStore(prefs);
       // 폰: CLI 없음 → 요청만 저장
-      AiService(phoneStore, prefs).requestChat('오늘 뭐 해?');
+      AiService(phoneStore, prefs, supportedOverride: false).requestChat('오늘 뭐 해?');
       final req = phoneStore.notes.single;
       expect(req.status, 'pending');
 

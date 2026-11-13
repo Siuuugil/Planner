@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/ai_note.dart';
 import '../models/game.dart';
 import '../models/maple_character.dart';
 import '../models/schedule.dart';
@@ -44,6 +45,9 @@ class AppStore extends ChangeNotifier {
   /// 숙제·보스 완료 체크 (id → 기록)
   final Map<String, DoneMark> marks = {};
 
+  /// AI가 만든 계획·리포트·답변 (최근 것이 앞)
+  final List<AiNote> notes = [];
+
   /// id → 마지막으로 반영된 상태({'kind', 'data'}를 JSON 인코딩한 것). 변경 감지용.
   final Map<String, String> _known = {};
 
@@ -82,6 +86,7 @@ class AppStore extends ChangeNotifier {
           .map((e) => Task.fromJson(e as Map<String, dynamic>)));
       characters.addAll((j['characters'] as List? ?? [])
           .map((e) => MapleCharacter.fromJson(e as Map<String, dynamic>)));
+      notes.addAll((j['notes'] as List? ?? []).map((e) => AiNote.fromJson(e as Map<String, dynamic>)));
       for (final e in (j['marks'] as List? ?? [])) {
         final m = DoneMark.fromJson(e as Map<String, dynamic>);
         marks[m.id] = m;
@@ -159,6 +164,7 @@ class AppStore extends ChangeNotifier {
         for (final t in tasks) t.id: ('task', t.toJson()),
         for (final c in characters) c.id: ('maple', c.toJson()),
         for (final m in marks.values) m.id: ('mark', m.toJson()),
+        for (final n in notes) n.id: ('ai', n.toJson()),
       };
 
   static String _encode(String kind, Map<String, dynamic>? data) =>
@@ -199,6 +205,7 @@ class AppStore extends ChangeNotifier {
         'tasks': tasks.map((t) => t.toJson()).toList(),
         'characters': characters.map((c) => c.toJson()).toList(),
         'marks': marks.values.map((m) => m.toJson()).toList(),
+        'notes': notes.map((n) => n.toJson()).toList(),
       }),
     );
     _prefs.setString(
@@ -226,7 +233,7 @@ class AppStore extends ChangeNotifier {
     var changed = false;
     for (final r in rows) {
       // 이 버전이 모르는 종류(이후 버전에서 추가된 것)는 건드리지 않는다.
-      if (!const {'schedule', 'game', 'task', 'maple', 'mark'}.contains(r.kind)) continue;
+      if (!const {'schedule', 'game', 'task', 'maple', 'mark', 'ai'}.contains(r.kind)) continue;
       final local = _stamps[r.id];
       if (local != null && !r.updatedAt.isAfter(local)) continue;
       _stamps[r.id] = r.updatedAt;
@@ -235,6 +242,19 @@ class AppStore extends ChangeNotifier {
       final gi = games.indexWhere((x) => x.id == r.id);
       final ti = tasks.indexWhere((x) => x.id == r.id);
       final ci = characters.indexWhere((x) => x.id == r.id);
+      if (r.kind == 'ai') {
+        notes.removeWhere((n) => n.id == r.id);
+        if (r.deleted || r.data == null) {
+          _known.remove(r.id);
+        } else {
+          final n = AiNote.fromJson(r.data!);
+          notes.add(n);
+          _known[r.id] = _encode(r.kind, n.toJson());
+        }
+        notes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        changed = true;
+        continue;
+      }
       if (r.kind == 'mark') {
         if (r.deleted || r.data == null) {
           marks.remove(r.id);
@@ -305,6 +325,7 @@ class AppStore extends ChangeNotifier {
     tasks.clear();
     characters.clear();
     marks.clear();
+    notes.clear();
     _known.clear();
     _stamps.clear();
     pending.clear();
@@ -394,6 +415,20 @@ class AppStore extends ChangeNotifier {
         if (goal.autoCharId == c.id) goal.autoCharId = null;
       }
     }
+    commit();
+  }
+
+  /// AI 결과 저장 (같은 id면 바꾸고, 최근 것이 앞). 오래된 대화·코치 답변은 50개까지만.
+  void saveNote(AiNote n) {
+    notes.removeWhere((x) => x.id == n.id);
+    notes.insert(0, n);
+    final old = notes.where((x) => x.type == 'chat' || x.type == 'coach').skip(50).toList();
+    notes.removeWhere(old.contains);
+    commit();
+  }
+
+  void deleteNote(AiNote n) {
+    notes.removeWhere((x) => x.id == n.id);
     commit();
   }
 

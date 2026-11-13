@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../data/store_scope.dart';
+import '../data/app_store.dart';
+import '../models/ai_note.dart';
 import '../models/game.dart';
 import '../models/schedule.dart';
 import '../models/task.dart';
@@ -158,6 +160,16 @@ class TodayScreen extends StatelessWidget {
                     child: GaugeBar(
                       value: doneCount / total,
                       label: '$doneCount개 완료 · 일정 ${lifeSchedules.length} · 할 일 ${dueTasks.length}',
+                    ),
+                  ),
+                if (_nextBlock(store, now) case (final plan, final next))
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: StatCard(
+                      label: 'AI 오늘 계획 · 다음',
+                      value: next == null ? '계획 끝!' : '${next.start} ${next.title}',
+                      caption: next?.note.isNotEmpty == true ? next!.note : '${plan.blocks.length}개 일정 · 눌러서 전체 보기',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiScreen())),
                     ),
                   ),
                 AppSection(
@@ -451,4 +463,16 @@ class _ChoreSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 오늘 AI 계획과 지금 이후 첫 블록 (회사 모드면 게임 블록은 건너뜀)
+(AiNote, PlanBlock?)? _nextBlock(AppStore store, DateTime now) {
+  final plan = store.notes.where((n) => n.type == 'plan' && n.date == todayKey()).firstOrNull;
+  if (plan == null) return null;
+  final hm = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  final next = plan.blocks
+      .where((b) => !(store.hideGames && b.kind == 'game'))
+      .where((b) => b.end.padLeft(5, '0').compareTo(hm) > 0)
+      .firstOrNull;
+  return (plan, next);
 }

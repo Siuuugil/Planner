@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../ai/ai_service.dart';
 import '../ai/claude_cli.dart';
+import '../data/store_scope.dart';
+import '../models/ai_note.dart';
 import '../ui/kit.dart';
 
 /// AI 화면: 빠른 입력 (이후 오늘 계획·코치·리포트·대화가 여기에 붙는다)
@@ -20,8 +22,9 @@ class AiScreen extends StatelessWidget {
             const AppSection(
               child: EmptyHint('AI 기능은 PC(Windows) 앱에서 내 컴퓨터의 Claude Code로 실행돼요. '
                   'PC에서 만든 계획·리포트는 여기에도 동기화돼서 보여요.'),
-            )
-          else ...[
+            ),
+          _PlanSection(ai: ai != null && ai.supported ? ai : null),
+          if (ai != null && ai.supported) ...[
             if (ai.running != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -129,6 +132,131 @@ class _QuickAddSectionState extends State<_QuickAddSection> {
           ],
         ],
       ),
+    );
+  }
+}
+
+String todayKey() {
+  final n = DateTime.now();
+  return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+}
+
+/// 오늘 계획: 보기(모든 기기) + 만들기(PC)
+class _PlanSection extends StatefulWidget {
+  const _PlanSection({required this.ai});
+
+  final AiService? ai;
+
+  @override
+  State<_PlanSection> createState() => _PlanSectionState();
+}
+
+class _PlanSectionState extends State<_PlanSection> {
+  String? _error;
+
+  Future<void> _make() async {
+    setState(() => _error = null);
+    try {
+      await widget.ai!.planToday();
+    } on ClaudeCliException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final plan = store.notes.where((n) => n.type == 'plan' && n.date == todayKey()).firstOrNull;
+    final busy = widget.ai?.running != null;
+    return AppSection(
+      title: '오늘 계획',
+      trailing: widget.ai == null
+          ? null
+          : TextButton.icon(
+              onPressed: busy ? null : _make,
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: Text(plan == null ? '계획 짜기' : '다시 짜기'),
+            ),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_error != null) Text(_error!, style: const TextStyle(color: Ui.red)),
+          if (plan == null)
+            Text(
+              widget.ai == null
+                  ? '오늘 계획이 아직 없어요. PC 앱에서 만들면 여기에 보여요.'
+                  : '오늘 일정·할 일·숙제를 보고 지금부터 시간표를 짜 줘요${store.hideGames ? ' (회사 모드라 게임은 빼고)' : ''}.',
+              style: const TextStyle(color: Ui.subtext),
+            )
+          else
+            PlanView(plan),
+        ],
+      ),
+    );
+  }
+}
+
+/// 계획 시간표
+class PlanView extends StatelessWidget {
+  const PlanView(this.plan, {super.key});
+
+  final AiNote plan;
+
+  static const colors = {'work': Ui.blue, 'personal': Ui.accent, 'game': Ui.purple, 'break': Ui.green};
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (plan.body.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(plan.body, style: const TextStyle(height: 1.5)),
+          ),
+        for (final b in plan.blocks)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 92,
+                  child: Text('${b.start}–${b.end}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext)),
+                ),
+                Container(
+                  width: 4,
+                  height: 36,
+                  margin: const EdgeInsets.only(right: 10, top: 2),
+                  decoration: BoxDecoration(
+                    color: colors[b.kind] ?? Ui.ring,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(b.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      if (b.note.isNotEmpty)
+                        Text(b.note, style: const TextStyle(fontSize: 12.5, color: Ui.subtext)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (plan.bullets.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          for (final t in plan.bullets)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text('· $t', style: const TextStyle(fontSize: 13, color: Ui.subtext)),
+            ),
+        ],
+      ],
     );
   }
 }

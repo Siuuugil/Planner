@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ai/ai_service.dart';
+import 'ai/my_voice.dart';
 import 'ai/voice.dart';
 import 'config.dart';
 import 'data/app_store.dart';
@@ -38,14 +39,35 @@ Future<void> main() async {
             return ((data['status'] as num).toInt(), data['body'] as String);
           },
   );
-  final ai = await AiService.open(store);
-  final voice = await VoiceService.open();
-  runApp(MyPlannerApp(store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice));
+  // '내 목소리': PC가 답을 내 목소리로 만들어 Storage에 올리면, 모든 기기가 받아서 재생
+  final myVoice = await MyVoice.open();
+  const bucket = 'voice';
+  final ai = await AiService.open(
+    store,
+    voiceMaker: !MyVoice.supported
+        ? null
+        : (id, text, emotion) async {
+            final uid = supabase.auth.currentUser?.id;
+            if (!myVoice.enabled || uid == null) return null;
+            final clip = await myVoice.speak(text, emotion);
+            final path = '$uid/${id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}.${clip.ext}';
+            await supabase.storage
+                .from(bucket)
+                .uploadBinary(path, clip.bytes, fileOptions: FileOptions(contentType: clip.mime, upsert: true));
+            return path;
+          },
+    voiceRemover: (paths) => supabase.storage.from(bucket).remove(paths),
+  );
+  final voice = await VoiceService.open()
+    ..resolveAudio = (path) async =>
+        supabase.auth.currentUser == null ? null : supabase.storage.from(bucket).createSignedUrl(path, 600);
+  runApp(MyPlannerApp(
+      store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice));
   maple.refreshStale();
 }
 
 class MyPlannerApp extends StatelessWidget {
-  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice});
+  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice, this.myVoice});
 
   final AppStore store;
   final SyncService? sync;
@@ -53,6 +75,7 @@ class MyPlannerApp extends StatelessWidget {
   final MapleService? maple;
   final AiService? ai;
   final VoiceService? voice;
+  final MyVoice? myVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +99,7 @@ class MyPlannerApp extends StatelessWidget {
     if (notify != null) root = NotifyScope(notify: notify!, child: root);
     if (maple != null) root = MapleScope(maple: maple!, child: root);
     if (ai != null) root = AiScope(ai: ai!, child: root);
-    if (voice != null) root = VoiceScope(voice: voice!, child: root);
+    if (voice != null) root = VoiceScope(voice: voice!, myVoice: myVoice, child: root);
     if (sync != null) root = SyncScope(sync: sync!, child: root);
     return root;
   }

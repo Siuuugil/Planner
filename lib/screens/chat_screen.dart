@@ -51,7 +51,7 @@ class _ChatScreenState extends State<ChatScreen> {
     for (final c in chats) {
       if (c.waiting || c.status == 'error' || c.body.isEmpty || !_heard.add(c.id)) continue;
       _toBottom();
-      _speakThenListen(c.body);
+      _speakThenListen(c);
     }
   }
 
@@ -62,10 +62,10 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       });
 
-  Future<void> _speakThenListen(String text) async {
+  Future<void> _speakThenListen(AiNote note) async {
     final voice = _voice;
     if (voice == null || !voice.speakReplies) return;
-    await voice.speak(text);
+    await voice.speak(note.body, audio: note.audio);
     if (!mounted || !voice.handsFree || !VoiceService.sttSupported) return;
     await voice.listen((t) => _sendText(t));
   }
@@ -137,11 +137,7 @@ class _ChatScreenState extends State<ChatScreen> {
             IconButton(
               tooltip: '대화 지우기',
               icon: const Icon(Icons.delete_outline),
-              onPressed: () {
-                for (final c in chats) {
-                  store.deleteNote(c);
-                }
-              },
+              onPressed: () => ai != null ? ai.deleteChats(chats) : chats.forEach(store.deleteNote),
             ),
         ],
       ),
@@ -179,7 +175,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       text: c.body,
                       mine: false,
                       time: c.createdAt,
-                      onSpeak: voice == null ? null : () => voice.speak(c.body),
+                      onSpeak: voice == null ? null : () => voice.speak(c.body, audio: c.audio),
+                      myVoice: c.audio != null,
                     ),
                   for (final a in c.actions) _ActionCard(note: c, action: a, enabled: canSend),
                 ],
@@ -283,12 +280,15 @@ class _VoiceBar extends StatelessWidget {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.text, required this.mine, this.time, this.onSpeak});
+  const _Bubble({required this.text, required this.mine, this.time, this.onSpeak, this.myVoice = false});
 
   final String text;
   final bool mine;
   final DateTime? time;
   final VoidCallback? onSpeak;
+
+  /// 내 목소리 음성이 붙은 답
+  final bool myVoice;
 
   @override
   Widget build(BuildContext context) => Align(
@@ -315,9 +315,10 @@ class _Bubble extends StatelessWidget {
                     if (onSpeak != null)
                       InkWell(
                         onTap: onSpeak,
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Icon(Icons.volume_up_outlined, size: 15, color: Ui.subtext),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Icon(myVoice ? Icons.record_voice_over_outlined : Icons.volume_up_outlined,
+                              size: 15, color: myVoice ? Ui.accent : Ui.subtext),
                         ),
                       ),
                   ]),

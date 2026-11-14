@@ -1,0 +1,7 @@
+# 내 녹음·설정·가상환경은 올리지 않음
+voice.json
+refs/
+venv/
+__pycache__/
+*.wav
+*.mp3

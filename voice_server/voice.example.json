@@ -1,0 +1,27 @@
+{
+  "engine": "gptsovits",
+  "port": 9800,
+  "format": "mp3",
+  "language": "ko",
+
+  "emotions": {
+    "neutral": { "audio": "refs/neutral.wav", "text": "오늘 일정은 오후 세 시 회의 하나 있어요." },
+    "happy":   { "audio": "refs/happy.wav",   "text": "와, 이번 주 보스 다 잡았네요! 진짜 잘했어요." },
+    "calm":    { "audio": "refs/calm.wav",    "text": "괜찮아요, 천천히 하나씩 하면 돼요." },
+    "sad":     { "audio": "refs/sad.wav",     "text": "아, 마감이 내일인데 아직 못 끝냈네요." },
+    "excited": { "audio": "refs/excited.wav", "text": "좋아요! 지금 바로 시작해 볼까요?" }
+  },
+
+  "gptsovits": {
+    "url": "http://127.0.0.1:9880",
+    "gpt_weights": "GPT_weights_v2Pro/내목소리-e15.ckpt",
+    "sovits_weights": "SoVITS_weights_v2Pro/내목소리_e8_s200.pth",
+    "speed": 1.0
+  },
+
+  "qwen": {
+    "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    "device": "cuda:0",
+    "language": "Korean"
+  }
+}

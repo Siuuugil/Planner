@@ -191,12 +191,16 @@ actions 종류:
 - {"type":"complete_task","title":"[상황]에 있는 할 일 제목 그대로"}
 - {"type":"check_chore","chore":"[상황]에 있는 숙제·보스 이름 그대로"}
 
-형식: {"reply":"답","actions":[...]}  (제안할 게 없으면 actions는 [])
+형식: {"reply":"답","emotion":"neutral","actions":[...]}  (제안할 게 없으면 actions는 [])
+emotion: 답을 소리 내어 읽을 때의 말투. neutral(보통) · happy(축하·칭찬) · calm(위로·차분) · sad(아쉬움·걱정) · excited(신남·응원) 중 하나
 
 [상황]
 $context
 ${history.isEmpty ? '' : '[최근 대화]\n${history.map((h) => '사용자: ${h.title}\n비서: ${h.body}').join('\n')}\n'}
 사용자: $message''';
+
+/// 내 목소리 서버가 아는 감정
+const voiceEmotions = ['neutral', 'happy', 'calm', 'sad', 'excited'];
 
 const _actionTypes = {'add_schedule', 'add_task', 'complete_task', 'check_chore'};
 
@@ -206,6 +210,7 @@ AiNote parseChat(Map<String, dynamic> json, String message, DateTime now) => AiN
       title: message,
       body: '${json['reply'] ?? ''}'.trim(),
       createdAt: now,
+      emotion: voiceEmotions.contains(json['emotion']) ? json['emotion'] as String : 'neutral',
       actions: [
         for (final a in (json['actions'] as List? ?? []))
           if (a is Map && _actionTypes.contains(a['type'])) a.cast<String, dynamic>(),
@@ -223,7 +228,8 @@ String describeAction(Map<String, dynamic> a) => switch (a['type']) {
 
 /// AI 기능 (PC에서 Claude CLI 사용). 실행 경로는 기기별 설정.
 class AiService extends ChangeNotifier {
-  AiService(this.store, this._prefs, {this.askOverride, bool? supportedOverride}) : _supported = supportedOverride {
+  AiService(this.store, this._prefs, {this.askOverride, bool? supportedOverride, this.voiceMaker, this.voiceRemover})
+      : _supported = supportedOverride {
     // 이 PC가 폰·웹의 대화 요청에 답한다 (PC 앱이 켜져 있을 때)
     if (supported) store.addListener(_scheduleRemote);
   }
@@ -231,6 +237,37 @@ class AiService extends ChangeNotifier {
   /// 테스트용: CLI 대신 답을 만든다
   final Future<Map<String, dynamic>> Function(String prompt)? askOverride;
   final bool? _supported;
+
+  /// '내 목소리': 답을 음성 파일로 만들어 올리고 경로를 돌려준다 (꺼져 있거나 실패하면 null)
+  final Future<String?> Function(String id, String text, String emotion)? voiceMaker;
+
+  /// 대화를 지울 때 음성 파일도 지운다
+  final Future<void> Function(List<String> audio)? voiceRemover;
+
+  /// 답에 내 목소리 음성을 붙인다. 오래 걸리거나 실패하면 그냥 글만 (폰은 기본 음성으로 읽음)
+  Future<AiNote> _withVoice(AiNote note) async {
+    final make = voiceMaker;
+    if (make == null || note.body.isEmpty) return note;
+    try {
+      final audio = await make(note.id, note.body, note.emotion ?? 'neutral').timeout(const Duration(seconds: 90));
+      return audio == null ? note : note.withVoice(audio: audio);
+    } catch (_) {
+      return note;
+    }
+  }
+
+  /// 설정의 '샘플 듣기': 내 목소리 파일을 만들어 경로를 돌려준다 (실패하면 예외)
+  Future<String?> sampleVoice(String text, String emotion) async =>
+      voiceMaker?.call('sample_$emotion', text, emotion);
+
+  /// 대화 지우기 (음성 파일 포함)
+  void deleteChats(List<AiNote> chats) {
+    final audio = [for (final c in chats) if (c.audio != null) c.audio!];
+    for (final c in chats) {
+      store.deleteNote(c);
+    }
+    if (audio.isNotEmpty) voiceRemover?.call(audio).catchError((_) {});
+  }
 
   static const _pathKey = 'claude_cli_path';
   static const _serveKey = 'serve_remote_chat';
@@ -240,8 +277,12 @@ class AiService extends ChangeNotifier {
   /// 지금 AI가 일하는 중인 작업 이름 (없으면 null)
   String? running;
 
-  static Future<AiService> open(AppStore store) async =>
-      AiService(store, await SharedPreferences.getInstance());
+  static Future<AiService> open(
+    AppStore store, {
+    Future<String?> Function(String id, String text, String emotion)? voiceMaker,
+    Future<void> Function(List<String> audio)? voiceRemover,
+  }) async =>
+      AiService(store, await SharedPreferences.getInstance(), voiceMaker: voiceMaker, voiceRemover: voiceRemover);
 
   bool get supported => _supported ?? (askOverride != null || ClaudeCli.supported);
 
@@ -288,8 +329,9 @@ class AiService extends ChangeNotifier {
     try {
       final json = await _ask('폰·웹 대화', _chatPromptFor(req.title, excludeId: req.id));
       final ans = parseChat(json, req.title, req.createdAt);
-      store.saveNote(AiNote(
-          id: req.id, type: 'chat', title: req.title, body: ans.body, createdAt: req.createdAt, actions: ans.actions));
+      store.saveNote(await _withVoice(AiNote(
+          id: req.id, type: 'chat', title: req.title, body: ans.body, createdAt: req.createdAt,
+          actions: ans.actions, emotion: ans.emotion)));
     } on ClaudeCliException catch (e) {
       store.saveNote(AiNote(
           id: req.id, type: 'chat', title: req.title, body: 'PC에서 답하지 못했어요: ${e.message}', createdAt: req.createdAt, status: 'error'));
@@ -353,7 +395,7 @@ class AiService extends ChangeNotifier {
   Future<AiNote> chat(String message) async {
     final now = DateTime.now();
     final json = await _ask('대화', _chatPromptFor(message));
-    final note = parseChat(json, message, now);
+    final note = await _withVoice(parseChat(json, message, now));
     store.saveNote(note);
     return note;
   }

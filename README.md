@@ -42,6 +42,10 @@
   - **🎤 음성 대화**: 폰·웹(크롬)에서 마이크 버튼 → 말하면 보내지고, 답은 소리로 읽어줌
     - 핸즈프리(🎧): 답을 다 읽으면 자동으로 다시 들음 → 계속 말로 대화
     - PC 앱도 답을 읽어줌. Windows 음성 인식은 한국어가 안 돼서 입력은 Win + H (Windows 음성 입력) 사용
+  - **🗣 내 목소리**: AI 답을 내 목소리로 (GPT-SoVITS 학습 또는 Qwen3-TTS 복제, PC GPU에서 실행)
+    - AI가 답마다 감정(보통·기쁨·차분·아쉬움·신남)을 고르고, 그 감정으로 녹음한 내 참고 음성의 말투를 따라 읽음
+    - PC가 만든 음성은 계정 저장소에 올라가서 폰·웹에서도 같은 목소리로 들림
+    - 설치·녹음·학습 방법: [voice_server/README.md](voice_server/README.md)
   - 설정 → AI: claude 실행 파일 경로, 연결 확인
 - **폰 ↔ PC 동기화** (Supabase): 이메일로 로그인하면 자동으로 맞춰짐
   - 오프라인에서도 그대로 사용 가능, 인터넷이 연결되면 밀린 변경을 올림
@@ -97,10 +101,11 @@ lib/
   data/                     AppStore(상태 + 저장 + 변경 추적), SyncService(Supabase 동기화)
   notify/                   알림 계획(reminders.dart)·예약(notify_service.dart)
   maple/                    넥슨 Open API 클라이언트·캐릭터 갱신
-  ai/                       Claude CLI 연동, AI 프롬프트·상황 요약
+  ai/                       Claude CLI 연동, AI 프롬프트·상황 요약, 음성(인식·읽기·내 목소리)
   ui/kit.dart               테마와 공통 디자인 요소 (섹션 카드, 진행 막대, 체크 등)
   screens/                  홈 / 캘린더 / 할 일 / 메이플 (+ 캐릭터·결정석·게임 상세, 계정, 설정)
   widgets/                  타일과 추가·수정 다이얼로그
+voice_server/                PC용 '내 목소리' 서버 (GPT-SoVITS / Qwen3-TTS)
 test/                       초기화 계산·진행률·동기화 병합·알림 계획·화면 테스트
 ```
 

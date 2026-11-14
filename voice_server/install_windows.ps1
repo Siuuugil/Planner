@@ -37,6 +37,13 @@ foreach ($f in 'server.py', 'start_voice_server.bat', 'voice.example.json', 'REA
 }
 Info "완료: $vs"
 
+function Find-Gsv { Get-ChildItem -Path $Root -Directory -ErrorAction SilentlyContinue |
+  Where-Object { Test-Path (Join-Path $_.FullName 'go-webui.bat') } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }
+$existing = Find-Gsv
+if ($existing) {
+  Step 3 "GPT-SoVITS 가 이미 있어요 ($($existing.FullName)) → 받기·압축 풀기는 건너뛰어요"
+  $gsv = $existing.FullName
+} else {
 # 3. 최신 통합 패키지 찾기
 Step 3 'GPT-SoVITS 최신 통합 패키지 찾기'
 $pkg = $null
@@ -81,13 +88,13 @@ if ($sevenZip) {
   & tar.exe -xf $archive -C $Root
 }
 if ($LASTEXITCODE -ne 0) { throw '압축 풀기 실패. 7-Zip(https://www.7-zip.org)을 설치하고 다시 실행해 주세요.' }
-$gsv = Get-ChildItem -Path $Root -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'go-webui.bat') } |
-  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$gsv = Find-Gsv
 if (-not $gsv) { throw "압축은 풀렸는데 go-webui.bat 을 못 찾았어요 ($Root 확인)." }
 $gsv = $gsv.FullName
 Info "GPT-SoVITS 위치: $gsv"
 $ans = Read-Host '      다 풀렸어요. 압축 파일을 지워 공간을 확보할까요? (Y/n)'
 if ($ans -ne 'n') { Remove-Item $archive -Force; Info '압축 파일 삭제' }
+}
 
 # 6. 설정
 Step 6 '설정 파일 만들기'
@@ -99,12 +106,18 @@ if (Test-Path $py) {
   try { & $py -m pip install -q lameenc 2>$null | Out-Null; Info 'mp3 변환(lameenc) 설치' } catch { Warn 'lameenc 설치 실패 (wav 로 보내요, 동작엔 문제 없음)' }
 }
 
+# 기본 go-webui.bat 은 중국어(zh_CN)로 켜져서 한국어판 실행 파일을 따로 만든다
+$webuiKo = Join-Path $gsv 'go-webui-ko.bat'
+$orig = Get-Content (Join-Path $gsv 'go-webui.bat') -Raw
+Set-Content -Path $webuiKo -Value ($orig -replace 'webui\.py\s+\w+', 'webui.py ko_KR') -Encoding ASCII
+Info '한국어 학습 화면 실행 파일: go-webui-ko.bat'
+
 # 7. 바로가기
 Step 7 '바탕화면 바로가기'
 $desk = [Environment]::GetFolderPath('Desktop')
 $sh = New-Object -ComObject WScript.Shell
 foreach ($s in @(
-  @{ Name = 'GPT-SoVITS 학습'; Target = (Join-Path $gsv 'go-webui.bat'); Dir = $gsv },
+  @{ Name = 'GPT-SoVITS 학습'; Target = $webuiKo; Dir = $gsv },
   @{ Name = '내 목소리 서버'; Target = (Join-Path $vs 'start_voice_server.bat'); Dir = $vs },
   @{ Name = '내 목소리 녹음 폴더'; Target = (Join-Path $vs 'refs'); Dir = $vs }
 )) {
@@ -123,4 +136,4 @@ Write-Host "  2) 'GPT-SoVITS 학습' 으로 학습 (README 2-A)"
 Write-Host "  3) $cfg 에 대본·모델 경로 적기"
 Write-Host "  4) '내 목소리 서버' 실행 → 마이플래너 설정 → 내 목소리 → 켜기"
 $open = Read-Host '지금 학습 화면(WebUI)을 열까요? (Y/n)'
-if ($open -ne 'n') { Start-Process -FilePath (Join-Path $gsv 'go-webui.bat') -WorkingDirectory $gsv }
+if ($open -ne 'n') { Start-Process -FilePath $webuiKo -WorkingDirectory $gsv }

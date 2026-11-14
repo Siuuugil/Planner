@@ -56,11 +56,25 @@
 
 RTX 3080 12GB 기준으로 학습 10~20분, 문장당 생성 1~3초 정도입니다.
 
-### 설치
+### 설치 (자동, 추천)
+시작 메뉴에서 **PowerShell** 을 열고 아래 한 줄을 붙여넣기 → Enter:
+```powershell
+irm https://raw.githubusercontent.com/Siuuugil/Planner/HEAD/voice_server/install_windows.ps1 | iex
+```
+알아서 하는 일:
+- `C:\MyPlannerVoice` 에 음성 서버 파일 받기
+- GPT-SoVITS **최신** 통합 패키지 찾아서 받기 (수 GB, 끊기면 다시 실행하면 이어 받음)
+- 7-Zip 이 없으면 설치하고 압축 풀기
+- `voice.json`, mp3 변환 설치, 바탕화면 바로가기 3개 (**GPT-SoVITS 학습** · **내 목소리 서버** · **내 목소리 녹음 폴더**)
+- 마지막에 학습 화면(WebUI) 열기
+
+설치 후 '내 목소리 서버' 바로가기를 누르면 GPT-SoVITS API 까지 같이 켜집니다.
+
+### 설치 (수동)
 1. [GPT-SoVITS 릴리스](https://github.com/RVC-Boss/GPT-SoVITS/releases)에서 **Windows 통합 패키지**(7z) 받아 압축 풀기
    (경로에 한글·공백 없는 곳, 예: `C:\GPT-SoVITS`)
 2. `go-webui.bat` 실행 → 브라우저에 WebUI가 열림
-3. 모델 버전은 **v2Pro**(또는 v2 이상)를 고르세요. v2 부터 한국어를 지원합니다
+3. WebUI 에서 모델 버전은 v2 이상(v2Pro 등)을 고르세요. v2 부터 한국어를 지원합니다
 
 ### 학습 (WebUI 순서대로)
 1. **0-전처리**

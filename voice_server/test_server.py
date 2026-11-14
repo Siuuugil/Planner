@@ -91,7 +91,7 @@ class GptSovitsAdapterTest(unittest.TestCase):
             eng = server.GptSovitsEngine(cfg)
             pcm, rate, ch = eng.synth("안녕", "happy")
             self.assertEqual((len(pcm), rate, ch), (100, 32000, 1))
-            self.assertEqual(seen["get"], ["/set_gpt_weights?weights_path=g.ckpt",
+            self.assertEqual(seen["get"], ["/docs", "/set_gpt_weights?weights_path=g.ckpt",
                                            "/set_sovits_weights?weights_path=s.pth"])
             t = seen["tts"]
             self.assertEqual((t["text"], t["text_lang"], t["ref_audio_path"], t["prompt_text"]),

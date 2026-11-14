@@ -102,12 +102,31 @@ class GptSovitsEngine:
         self.lang = cfg.get("language", "ko")
         self.speed = float(g.get("speed", 1.0))
         self.emotions = cfg["emotions"]
+        self._wait_ready(float(g.get("wait_seconds", 180)))
         # 내가 학습한 모델로 바꿔 둔다 (비워 두면 GPT-SoVITS 쪽 설정 그대로)
         for key, endpoint in (("gpt_weights", "set_gpt_weights"), ("sovits_weights", "set_sovits_weights")):
             if g.get(key):
                 q = urllib.parse.urlencode({"weights_path": g[key]})
                 with urllib.request.urlopen(f"{self.url}/{endpoint}?{q}", timeout=300) as r:
                     r.read()
+
+    def _wait_ready(self, seconds: float):
+        """같이 켠 GPT-SoVITS API 가 모델을 다 올릴 때까지 기다린다"""
+        import time
+        import urllib.error
+
+        deadline = time.monotonic() + seconds
+        while True:
+            try:
+                urllib.request.urlopen(f"{self.url}/docs", timeout=3).read()
+                return
+            except urllib.error.HTTPError:
+                return  # 응답이 오면 켜진 것
+            except OSError:
+                if time.monotonic() > deadline:
+                    raise SystemExit(f"GPT-SoVITS API({self.url})에 연결할 수 없어요. api_v2.py 가 켜져 있는지 확인해 주세요.")
+                print("[voice] GPT-SoVITS API 기다리는 중…")
+                time.sleep(3)
 
     def synth(self, text: str, emotion: str) -> tuple[bytes, int, int]:
         ref = self.emotions.get(emotion) or self.emotions["neutral"]

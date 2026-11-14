@@ -88,11 +88,9 @@ irm https://raw.githubusercontent.com/Siuuugil/Planner/HEAD/voice_server/install
    - 1B 미세조정: **SoVITS** 학습 (epoch 8~10) → **GPT** 학습 (epoch 10~15)
 3. **1C 추론**에서 방금 만든 모델 골라 몇 문장 들어보기. 마음에 드는 epoch 파일을 고르세요
 
-학습이 끝나면 이런 파일이 생깁니다 (이름은 실험 이름·epoch 따라 다름):
-```
-C:\GPT-SoVITS\GPT_weights_v2Pro\내목소리-e15.ckpt
-C:\GPT-SoVITS\SoVITS_weights_v2Pro\내목소리_e8_s200.pth
-```
+학습이 끝나면 GPT-SoVITS 폴더 안의 `GPT_weights_<버전>` / `SoVITS_weights_<버전>` 폴더에 파일이 생깁니다
+(이름은 실험 이름·epoch 따라 다름, 예: `GPT_weights_v5\내목소리-e15.ckpt`, `SoVITS_weights_v5\내목소리_e8_s200.pth`).
+학습 전에는 `voice.json` 의 두 경로를 `""` 로 비워 두면 기본 모델로 읽어요.
 
 ### API 켜기
 ```bat

@@ -102,5 +102,25 @@ class GptSovitsAdapterTest(unittest.TestCase):
             fake.shutdown(); fake.server_close()
 
 
+class ConfigTest(unittest.TestCase):
+    def test_missing_recordings(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "refs").mkdir()
+            cfg = {"engine": "gptsovits", "emotions": {"neutral": {"audio": "refs/neutral.wav", "text": "a"},
+                                                       "happy": {"audio": "refs/happy.wav", "text": "b"}}}
+            (d / "voice.json").write_text(json.dumps(cfg), encoding="utf-8")
+            with self.assertRaises(SystemExit) as cm:
+                server.load_config(d / "voice.json")
+            self.assertIn("neutral.wav", str(cm.exception.code))
+
+            (d / "refs" / "neutral.wav").write_bytes(server.pcm_to_wav(b"\0\0" * 10, 16000))
+            loaded = server.load_config(d / "voice.json")
+            self.assertEqual(list(loaded["emotions"]), ["neutral"])  # 없는 happy 는 빠짐
+
+
 if __name__ == "__main__":
     unittest.main()

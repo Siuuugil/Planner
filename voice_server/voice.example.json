@@ -14,8 +14,8 @@
 
   "gptsovits": {
     "url": "http://127.0.0.1:9880",
-    "gpt_weights": "GPT_weights_v2Pro/내목소리-e15.ckpt",
-    "sovits_weights": "SoVITS_weights_v2Pro/내목소리_e8_s200.pth",
+    "gpt_weights": "",
+    "sovits_weights": "",
     "speed": 1.0
   },
 

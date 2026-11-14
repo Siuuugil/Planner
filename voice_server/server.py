@@ -19,6 +19,7 @@ import json
 import re
 import sys
 import threading
+import urllib.error
 import urllib.parse
 import urllib.request
 import wave
@@ -42,8 +43,17 @@ def load_config(path: Path) -> dict:
         if not audio.is_absolute():
             audio = (base / audio).resolve()
         emotions[name] = {"audio": str(audio), "text": ref.get("text", "")}
+    # 녹음 파일이 없는 감정은 빼고, 기본(neutral)이 없으면 시작하지 않는다
+    missing = [name for name, ref in emotions.items() if not Path(ref["audio"]).is_file()]
+    for name in missing:
+        print(f"[voice] '{name}' 녹음 파일이 없어서 빼요: {emotions[name]['audio']}")
+        emotions.pop(name)
     if "neutral" not in emotions:
-        raise SystemExit("voice.json 의 emotions 에 'neutral'(기본) 참고 녹음이 꼭 있어야 해요.")
+        raise SystemExit(
+            "[voice] 기본(neutral) 참고 녹음이 없어요.\n"
+            f"        {base / 'refs'} 폴더에 neutral.wav (3~10초) 를 넣고, voice.json 에 그 대본을 적어 주세요.\n"
+            "        순서: 녹음 → (GPT-SoVITS) 학습 → voice.json 수정 → 이 서버 실행"
+        )
     cfg["emotions"] = emotions
     return cfg
 
@@ -107,13 +117,19 @@ class GptSovitsEngine:
         for key, endpoint in (("gpt_weights", "set_gpt_weights"), ("sovits_weights", "set_sovits_weights")):
             if g.get(key):
                 q = urllib.parse.urlencode({"weights_path": g[key]})
-                with urllib.request.urlopen(f"{self.url}/{endpoint}?{q}", timeout=300) as r:
-                    r.read()
+                try:
+                    with urllib.request.urlopen(f"{self.url}/{endpoint}?{q}", timeout=300) as r:
+                        r.read()
+                except urllib.error.HTTPError as e:
+                    raise SystemExit(
+                        f"[voice] 학습한 모델 파일을 못 불러왔어요: {g[key]}\n"
+                        "        voice.json 의 gptsovits.gpt_weights / sovits_weights 를 학습 후 생긴 실제 파일 경로로 고쳐 주세요.\n"
+                        "        (아직 학습 전이면 두 값을 \"\" 로 비워 두면 기본 모델로 읽어요)"
+                    ) from e
 
     def _wait_ready(self, seconds: float):
         """같이 켠 GPT-SoVITS API 가 모델을 다 올릴 때까지 기다린다"""
         import time
-        import urllib.error
 
         deadline = time.monotonic() + seconds
         while True:

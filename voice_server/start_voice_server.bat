@@ -7,6 +7,13 @@ if not exist voice.json (
   exit /b 1
 )
 
+if not exist refs\neutral.wav (
+  echo [voice] 아직 녹음이 없어요: %~dp0refs\neutral.wav
+  echo         순서: 녹음 - GPT-SoVITS 학습 - voice.json 수정 - 이 서버 실행  ^(README 1~3장^)
+  pause
+  exit /b 1
+)
+
 rem 설치 스크립트가 적어 둔 GPT-SoVITS 위치
 set GSV=
 if exist gptsovits_path.txt set /p GSV=<gptsovits_path.txt

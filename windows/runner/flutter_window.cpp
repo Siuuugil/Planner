@@ -1,6 +1,8 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <wchar.h>
+#include <windows.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -27,8 +29,10 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
-  flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
+  // 윈도우 시작 시 자동 실행(--minimized)이면 창을 띄우지 않고 트레이에서만 실행
+  const bool start_hidden = ::wcsstr(::GetCommandLineW(), L"--minimized") != nullptr;
+  flutter_controller_->engine()->SetNextFrameCallback([this, start_hidden]() {
+    if (!start_hidden) this->Show();
   });
 
   // Flutter can complete the first frame before the "show window" callback is

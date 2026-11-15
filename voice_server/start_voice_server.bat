@@ -21,7 +21,7 @@ if exist gptsovits_path.txt set /p GSV=<gptsovits_path.txt
 findstr /c:"\"engine\": \"gptsovits\"" voice.json >nul
 if %errorlevel%==0 if defined GSV (
   echo GPT-SoVITS API 를 새 창에서 켜요...
-  start "GPT-SoVITS API" /d "%GSV%" "%GSV%\runtime\python.exe" api_v2.py -a 127.0.0.1 -p 9880 -c GPT_SoVITS/configs/tts_infer.yaml
+  start "GPT-SoVITS API" /min /d "%GSV%" "%GSV%\runtime\python.exe" api_v2.py -a 127.0.0.1 -p 9880 -c GPT_SoVITS/configs/tts_infer.yaml
 )
 
 if exist venv\Scripts\python.exe (

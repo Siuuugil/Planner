@@ -9,6 +9,7 @@ import 'ai/my_voice.dart';
 import 'ai/voice.dart';
 import 'config.dart';
 import 'data/app_store.dart';
+import 'desktop/desktop_shell.dart';
 import 'data/store_scope.dart';
 import 'data/sync_service.dart';
 import 'maple/maple_service.dart';
@@ -17,8 +18,10 @@ import 'screens/account_screen.dart';
 import 'screens/home_shell.dart';
 import 'ui/kit.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Windows: 트레이 상주 + 자동 실행 (다른 기기는 null)
+  final desktop = await DesktopShell.start(args);
   await initializeDateFormatting('ko_KR');
   final store = await AppStore.open();
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
@@ -62,12 +65,12 @@ Future<void> main() async {
     ..resolveAudio = (path) async =>
         supabase.auth.currentUser == null ? null : supabase.storage.from(bucket).createSignedUrl(path, 600);
   runApp(MyPlannerApp(
-      store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice));
+      store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice, desktop: desktop));
   maple.refreshStale();
 }
 
 class MyPlannerApp extends StatelessWidget {
-  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice, this.myVoice});
+  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice, this.myVoice, this.desktop});
 
   final AppStore store;
   final SyncService? sync;
@@ -76,6 +79,7 @@ class MyPlannerApp extends StatelessWidget {
   final AiService? ai;
   final VoiceService? voice;
   final MyVoice? myVoice;
+  final DesktopShell? desktop;
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +105,7 @@ class MyPlannerApp extends StatelessWidget {
     if (ai != null) root = AiScope(ai: ai!, child: root);
     if (voice != null) root = VoiceScope(voice: voice!, myVoice: myVoice, child: root);
     if (sync != null) root = SyncScope(sync: sync!, child: root);
+    if (desktop != null) root = DesktopScope(shell: desktop!, child: root);
     return root;
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../data/store_scope.dart';
+import '../desktop/desktop_shell.dart';
 import '../ai/ai_service.dart';
 import '../ai/claude_cli.dart';
 import '../ai/my_voice.dart';
@@ -23,6 +24,35 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
+          if (DesktopScope.of(context) case final d?)
+            AppSection(
+              title: 'PC 앱',
+              child: Column(
+                children: withDividers([
+                  SwitchListTile(
+                    title: const Text('창을 닫아도 트레이에서 계속 실행'),
+                    subtitle: const Text('X를 누르면 작업 표시줄 오른쪽 아래 아이콘으로 숨어요. '
+                        '계속 켜져 있어야 폰에서 보낸 AI 대화·음성에 답하고 알림도 울려요. '
+                        '완전히 끄려면 트레이 아이콘 우클릭 → 완전히 종료'),
+                    value: d.closeToTray,
+                    onChanged: (v) => d.closeToTray = v,
+                  ),
+                  SwitchListTile(
+                    title: const Text('윈도우 시작 시 자동 실행'),
+                    subtitle: const Text('PC를 켜면 창 없이 트레이로 조용히 켜져요'),
+                    value: d.autoStart,
+                    onChanged: d.setAutoStart,
+                  ),
+                  if (d.voiceServerAvailable)
+                    SwitchListTile(
+                      title: const Text('켤 때 내 목소리 서버도 같이 켜기'),
+                      subtitle: const Text('C:\\MyPlannerVoice 의 음성 서버를 최소화된 창으로 함께 실행해요'),
+                      value: d.startVoiceServer,
+                      onChanged: (v) => d.startVoiceServer = v,
+                    ),
+                ]),
+              ),
+            ),
           AppSection(
             title: '화면',
             child: SwitchListTile(

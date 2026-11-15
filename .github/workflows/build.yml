@@ -43,7 +43,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter build apk --release --build-number=${{ github.run_number }}
+      - run: flutter build apk --release --build-number=${{ github.run_number }} --dart-define=BUILD_ID=${{ github.run_number }} --dart-define=BUILD_SHA=${{ github.sha }}
       - run: mv build/app/outputs/flutter-apk/app-release.apk MyPlanner.apk
       # 서명 키가 바뀌면 폰에서 업데이트 설치가 막히므로, 고정 키로 서명됐는지 확인한다.
       - name: 서명 키 확인
@@ -65,7 +65,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter build windows --release --build-number=${{ github.run_number }}
+      - run: flutter build windows --release --build-number=${{ github.run_number }} --dart-define=BUILD_ID=${{ github.run_number }} --dart-define=BUILD_SHA=${{ github.sha }}
       - name: zip
         shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath MyPlanner-windows.zip
@@ -84,7 +84,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       # GitHub Pages 주소가 https://<계정>.github.io/<레포이름>/ 이므로 base href를 맞춘다.
-      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/" --dart-define=BUILD_ID=${{ github.run_number }} --dart-define=BUILD_SHA=${{ github.sha }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web

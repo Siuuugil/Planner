@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../config.dart';
 import '../data/store_scope.dart';
 import '../desktop/desktop_shell.dart';
 import '../ai/ai_service.dart';
@@ -76,6 +77,11 @@ class SettingsScreen extends StatelessWidget {
             _AiPanel(ai),
             if (VoiceScope.myVoiceOf(context) case final mv? when MyVoice.supported) _MyVoicePanel(ai, mv),
           ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text('마이플래너 · $buildLabel',
+                textAlign: TextAlign.center, style: const TextStyle(color: Ui.subtext, fontSize: 12.5)),
+          ),
         ],
       ),
     );

@@ -208,19 +208,14 @@ class BossDef {
   final bool grandis;
 }
 
+/// 보스 선택 목록. 결정석 4천만 이하(노멀·하드 등)는 뺐다.
+/// 단, 노멀 루시드·윌·더스크·진 힐라·듄켈은 남긴다. 하드는 하드 스우부터.
 const bossCatalog = <BossDef>[
-  BossDef('자쿰', ['카오스'], 'zzakum'),
-  BossDef('매그너스', ['하드'], 'magnus'),
-  BossDef('파풀라투스', ['카오스'], 'papulatus'),
-  BossDef('피에르', ['카오스'], 'pierre'),
-  BossDef('반반', ['카오스'], 'von_bon'),
-  BossDef('블러디퀸', ['카오스'], 'crimson_queen'),
-  BossDef('벨룸', ['카오스'], 'vellum'),
-  BossDef('스우', ['노멀', '하드', '익스트림'], 'lotus'),
-  BossDef('데미안', ['노멀', '하드'], 'damien'),
-  BossDef('가디언 엔젤 슬라임', ['노멀', '카오스'], 'guardian_angel_slime'),
-  BossDef('루시드', ['이지', '노멀', '하드'], 'lucid'),
-  BossDef('윌', ['이지', '노멀', '하드'], 'will'),
+  BossDef('스우', ['하드', '익스트림'], 'lotus'),
+  BossDef('데미안', ['하드'], 'damien'),
+  BossDef('가디언 엔젤 슬라임', ['카오스'], 'guardian_angel_slime'),
+  BossDef('루시드', ['노멀', '하드'], 'lucid'),
+  BossDef('윌', ['노멀', '하드'], 'will'),
   BossDef('더스크', ['노멀', '카오스'], 'gloom'),
   BossDef('진 힐라', ['노멀', '하드'], 'verus_hilla'),
   BossDef('듄켈', ['노멀', '하드'], 'darknell'),
@@ -236,9 +231,33 @@ const bossCatalog = <BossDef>[
   BossDef('검은 마법사', ['하드', '익스트림'], 'black_mage', monthly: true),
 ];
 
+/// 목록에서 뺀 저가 보스 (예전에 골라 둔 게 있으면 아이콘·해제용으로만 쓴다)
+const retiredBossCatalog = <BossDef>[
+  BossDef('자쿰', ['카오스'], 'zzakum'),
+  BossDef('매그너스', ['하드'], 'magnus'),
+  BossDef('파풀라투스', ['카오스'], 'papulatus'),
+  BossDef('피에르', ['카오스'], 'pierre'),
+  BossDef('반반', ['카오스'], 'von_bon'),
+  BossDef('블러디퀸', ['카오스'], 'crimson_queen'),
+  BossDef('벨룸', ['카오스'], 'vellum'),
+];
+
+/// '난이도 보스' 이름이 지금 보스 선택 목록에 있는지
+bool isListedBoss(String name) {
+  final (d, boss) = splitBossName(name);
+  return bossCatalog.any((b) => b.name == boss && b.difficulties.contains(d));
+}
+
+/// 월간 보스인지 ('하드 검은 마법사' 등)
+bool isMonthlyBossName(String name) {
+  final boss = splitBossName(name).$2;
+  return bossCatalog.any((b) => b.name == boss && b.monthly) ||
+      defaultBossPrices.any((e) => e.$1 == name && e.$3);
+}
+
 /// 보스 이름 → 아이콘 파일 이름 (없으면 null)
 String? bossIconOf(String boss) {
-  for (final b in bossCatalog) {
+  for (final b in [...bossCatalog, ...retiredBossCatalog]) {
     if (b.name == boss) return b.icon;
   }
   return null;
@@ -398,11 +417,40 @@ class Game {
   /// 예전 버전이 저장한 주간 결정석 수익 (주 시작일 → 메소). 이제는 읽기만 한다.
   final Map<String, int> crystalWeeks;
 
-  /// 완료 기록(DoneMark)에서 계산한 주간 수익. 저장하지 않는다.
+  /// 완료 기록(DoneMark)에서 계산한 주간 수익 (월간 보스 제외). 저장하지 않는다.
   final Map<String, int> crystalLive = {};
 
-  /// 주간 결정석 수익 (예전 기록 + 완료 기록, 같은 주는 완료 기록 우선)
+  /// 완료 기록에서 계산한 월간 보스 수익 (월 키 'M2026-11' → 메소). 저장하지 않는다.
+  final Map<String, int> crystalMonthly = {};
+
+  /// 주간 결정석 수익 (예전 기록 + 완료 기록, 같은 주는 완료 기록 우선). 월간 보스는 빠진다.
   Map<String, int> get weekIncome => {...crystalWeeks, ...crystalLive};
+
+  /// 월간 보스(검은 마법사 등)인지. 저장 형식은 주간 숙제 그대로 두고 보스로 구분한다
+  /// (예전 앱이 모르는 값을 저장하지 않으려고).
+  bool isMonthly(Chore c) {
+    if (!c.isBoss) return false;
+    final b = bossById(c.bossId);
+    return b != null && (b.monthly || isMonthlyBossName(b.name));
+  }
+
+  /// 이번 달 시작 시각 (매월 1일, 초기화 시각 기준)
+  DateTime monthStart(DateTime now) {
+    final s = DateTime(now.year, now.month, 1, resetHour);
+    return now.isBefore(s) ? DateTime(now.year, now.month - 1, 1, resetHour) : s;
+  }
+
+  /// 월 키 'M2026-11'
+  String monthKey(DateTime now) {
+    final s = monthStart(now);
+    return 'M${s.year}-${s.month.toString().padLeft(2, '0')}';
+  }
+
+  /// 숙제의 이번 주기 시작 (월간 보스는 이번 달, 나머지는 일일/주간)
+  DateTime periodStartOf(Chore c, DateTime now) => isMonthly(c) ? monthStart(now) : periodStart(c.period, now);
+
+  /// 완료 기록에 쓸 주기 키 (보스: 주 또는 월)
+  String markKey(Chore c, DateTime at) => isMonthly(c) ? monthKey(at) : weekKey(at);
 
   BossPrice? bossById(String? id) {
     for (final b in bosses) {
@@ -464,7 +512,7 @@ class Game {
       if (b.name == name) return b;
     }
     final d = defaultBossPrices.where((e) => e.$1 == name).firstOrNull;
-    final b = BossPrice(id: newId(), name: name, price: d?.$2 ?? 0, monthly: d?.$3 ?? false);
+    final b = BossPrice(id: newId(), name: name, price: d?.$2 ?? 0, monthly: d?.$3 ?? isMonthlyBossName(name));
     bosses.add(b);
     return b;
   }
@@ -547,18 +595,23 @@ class Game {
 
   /// 이번 주 결정석 수익을 다시 계산해 기록하고, 결정석 목표의 현재값을 맞춘다.
   void recomputeCrystals(DateTime now) {
-    final boss = chores.where((c) => c.isBoss);
-    final earned = boss.where((c) => isChoreDone(c, now)).fold<int>(0, (a, c) => a + bossIncome(c));
+    final weekly = chores.where((c) => c.isBoss && !isMonthly(c));
+    final earned = weekly.where((c) => isChoreDone(c, now)).fold<int>(0, (a, c) => a + bossIncome(c));
     final key = weekKey(now);
     if (earned > 0 || weekIncome.containsKey(key)) crystalLive[key] = earned;
-    final all = weekIncome;
+    final monthly = chores.where(isMonthly);
+    final mEarned = monthly.where((c) => isChoreDone(c, now)).fold<int>(0, (a, c) => a + bossIncome(c));
+    final mKey = monthKey(now);
+    if (mEarned > 0 || crystalMonthly.containsKey(mKey)) crystalMonthly[mKey] = mEarned;
+    // 메소 목표: 주간 + 월간 합계 (월 키는 그 달 1일로 비교)
+    final all = [
+      ...weekIncome.entries.map((e) => (e.key, e.value)),
+      ...crystalMonthly.entries.map((e) => ('${e.key.substring(1)}-01', e.value)),
+    ];
     for (final g in goals) {
       if (g.autoMetric != 'crystal') continue;
       final since = g.autoSince ?? '';
-      g.current = all.entries
-          .where((e) => e.key.compareTo(since) >= 0)
-          .fold<int>(0, (a, e) => a + e.value)
-          .toDouble();
+      g.current = all.where((e) => e.$1.compareTo(since) >= 0).fold<int>(0, (a, e) => a + e.$2).toDouble();
     }
   }
   /// [now] 기준으로 [period]가 시작된 시각.
@@ -575,7 +628,7 @@ class Game {
   }
 
   bool isChoreDone(Chore c, DateTime now) =>
-      c.lastDone != null && !c.lastDone!.isBefore(periodStart(c.period, now));
+      c.lastDone != null && !c.lastDone!.isBefore(periodStartOf(c, now));
 
   Map<String, dynamic> toJson() => {
         'id': id,

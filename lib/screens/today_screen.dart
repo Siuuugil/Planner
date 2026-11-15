@@ -79,7 +79,7 @@ class TodayScreen extends StatelessWidget {
     final hasGame = gameOpen.isNotEmpty || gameDone.isNotEmpty;
 
     final cg = store.crystalGame();
-    final boss = cg?.chores.where((c) => c.isBoss).toList() ?? [];
+    final boss = cg?.chores.where((c) => c.isBoss && !cg.isMonthly(c)).toList() ?? [];
     final crystalExpected = boss.fold<int>(0, (a, c) => a + cg!.bossIncome(c));
     final crystalDone = boss.where((c) => cg!.isChoreDone(c, now));
     final crystalEarned = crystalDone.fold<int>(0, (a, c) => a + cg!.bossIncome(c));

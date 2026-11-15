@@ -39,8 +39,9 @@ String plannerContext(AppStore store, DateTime now) {
     for (final g in store.games) {
       final daily = g.chores.where((c) => c.period == ChorePeriod.daily && !c.isBoss && !g.isChoreDone(c, now));
       final weekly = g.chores.where((c) => c.period == ChorePeriod.weekly && !c.isBoss && !g.isChoreDone(c, now));
-      final boss = g.chores.where((c) => c.isBoss && !g.isChoreDone(c, now)).toList();
-      if (daily.isEmpty && weekly.isEmpty && boss.isEmpty) continue;
+      final boss = g.chores.where((c) => c.isBoss && !g.isMonthly(c) && !g.isChoreDone(c, now)).toList();
+      final monthlyBoss = g.chores.where((c) => g.isMonthly(c) && !g.isChoreDone(c, now)).toList();
+      if (daily.isEmpty && weekly.isEmpty && boss.isEmpty && monthlyBoss.isEmpty) continue;
       final start = g.periodStart(ChorePeriod.weekly, now);
       final reset = DateTime(start.year, start.month, start.day + 7, g.resetHour);
       b.writeln('\n[게임: ${g.name}] 매일 ${g.resetHour}시 초기화, 주간 초기화까지 ${reset.difference(now).inHours}시간');
@@ -49,6 +50,9 @@ String plannerContext(AppStore store, DateTime now) {
       if (boss.isNotEmpty) {
         b.writeln('- 이번 주 남은 보스 ${boss.length}개 (${koreanNumber(boss.fold<int>(0, (a, c) => a + g.bossIncome(c)))} 메소): '
             '${boss.map((c) => '${c.title}${c.charName != null ? '(${c.charName})' : ''}').join(', ')}');
+      }
+      if (monthlyBoss.isNotEmpty) {
+        b.writeln('- 이번 달 남은 월간 보스: ${monthlyBoss.map((c) => '${c.title}${c.charName != null ? '(${c.charName})' : ''}').join(', ')}');
       }
     }
   }
@@ -94,8 +98,13 @@ String mapleContext(AppStore store, DateTime now) {
     if (boss.isEmpty && income.isEmpty && g.goals.isEmpty) continue;
     b.writeln('\n[${g.name} 결정석]');
     final key = g.weekKey(now);
-    final expected = boss.fold<int>(0, (a, c) => a + g.bossIncome(c));
-    b.writeln('- 이번 주: ${koreanNumber(income[key] ?? 0)} / 예상 ${koreanNumber(expected)} 메소');
+    final expected = boss.where((c) => !g.isMonthly(c)).fold<int>(0, (a, c) => a + g.bossIncome(c));
+    b.writeln('- 이번 주 (주간 보스만): ${koreanNumber(income[key] ?? 0)} / 예상 ${koreanNumber(expected)} 메소');
+    final monthly = boss.where(g.isMonthly).toList();
+    if (monthly.isNotEmpty) {
+      b.writeln('- 월간 보스 (주간 수익·판매 한도와 별개, 매월 1일 초기화): 이번 달 ${koreanNumber(g.crystalMonthly[g.monthKey(now)] ?? 0)} / '
+          '예상 ${koreanNumber(monthly.fold<int>(0, (a, c) => a + g.bossIncome(c)))} 메소');
+    }
     final past = (income.entries.where((e) => e.key.compareTo(key) < 0).toList()..sort((a, c) => a.key.compareTo(c.key)));
     final last8 = past.length > 8 ? past.sublist(past.length - 8) : past;
     if (last8.isNotEmpty) {
@@ -107,7 +116,7 @@ String mapleContext(AppStore store, DateTime now) {
       byChar.putIfAbsent(c.charName ?? '미지정', () => []).add(c);
     }
     for (final e in byChar.entries) {
-      final weekly = e.value.where((c) => !(g.bossById(c.bossId)?.monthly ?? false)).toList();
+      final weekly = e.value.where((c) => !g.isMonthly(c)).toList();
       final done = weekly.where((c) => g.isChoreDone(c, now)).length;
       b.writeln('- ${e.key}: 매주 잡는 보스로 ${weekly.length}개 등록 (주간 결정석 판매 한도 $weeklyCrystalLimit개 중 '
           '${weekly.length}칸 사용, 빈 칸 ${(weeklyCrystalLimit - weekly.length).clamp(0, weeklyCrystalLimit)}개), '
@@ -118,7 +127,7 @@ String mapleContext(AppStore store, DateTime now) {
             '내 몫 ${koreanNumber(g.bossIncome(c))}'
             '${g.isEos(c.charName) ? ' (에오스 결정석 ${koreanNumber(g.bossIncomeRaw(c))}을 메포로 바꿔 본캐 월드로 넘긴 값, ×${g.eosRate})' : ''}'
             ' (결정석 판매가 ${koreanNumber(price)})'
-            ' — 이번 주 ${g.isChoreDone(c, now) ? '처치함' : '아직'}');
+            ' — ${g.isMonthly(c) ? '월간 보스, 이번 달' : '이번 주'} ${g.isChoreDone(c, now) ? '처치함' : '아직'}');
       }
     }
 

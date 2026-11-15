@@ -182,17 +182,7 @@ class _MapleScreenState extends State<MapleScreen> {
         ),
       ];
     }
-    return [
-      CrystalBody(g),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: OutlinedButton.icon(
-          icon: const Icon(Icons.checklist_rounded),
-          label: const Text('보스 선택 (캐릭터 추가)'),
-          onPressed: () => showBossChoreEditor(context, g),
-        ),
-      ),
-    ];
+    return [CrystalBody(g)];
   }
 
   List<Widget> _growth(MapleCharacter? c) {

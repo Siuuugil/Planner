@@ -23,82 +23,23 @@ class CrystalScreen extends StatelessWidget {
 
     return AppScaffold(
       title: '💎 결정석 수익',
-      floatingActionButton: FloatingActionButton(
-        tooltip: '보스 수확 추가',
-        onPressed: () => showBossChoreEditor(context, g),
-        child: const Icon(Icons.add, size: 30),
-      ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
+        padding: const EdgeInsets.only(bottom: 48),
         children: [
-          _WeekPanel(g, now),
-          ..._routinePanels(context, g),
-          _HistoryPanel(g, now),
+          CrystalBody(g),
           _GoalPanel(g, now),
-          _PricePanel(g),
         ],
       ),
     );
   }
-
-  List<Widget> _routinePanels(BuildContext context, Game g) {
-    final boss = g.chores.where((c) => c.isBoss).toList();
-    if (boss.isEmpty) {
-      return [
-        AppSection(
-          title: '주간 보스 수확',
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '아래 "보스 선택"에서 캐릭터별로 잡는 보스를 고르세요.\n검밑솔·하세이칼·노적노칼 버튼으로 한 번에 채울 수 있어요.',
-                  style: const TextStyle(color: Ui.subtext),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ];
-    }
-    final byChar = <String, List<Chore>>{};
-    for (final c in boss) {
-      byChar.putIfAbsent(c.charName ?? '캐릭터 미지정', () => []).add(c);
-    }
-    final now = DateTime.now();
-    return [
-      for (final e in byChar.entries)
-        AppSection(
-          title: g.isEos(e.key) ? '${e.key} · 에오스 (×${g.eosRate} 환산)' : e.key,
-          accent: const Color(0xFFE8833A),
-          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            CountBadge('${e.value.where((c) => g.isChoreDone(c, now)).length}/${e.value.length}'),
-            TextButton(
-              onPressed: () => showBossChoreEditor(context, g, existing: e.value.first),
-              child: const Text('보스 선택'),
-            ),
-          ]),
-          child: Column(
-            children: [
-              if (e.value.length > weeklyCrystalLimit)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-                  child: Text(
-                    '캐릭터당 주간 결정석 판매는 $weeklyCrystalLimit개까지예요. '
-                    '비싼 보스 위주로 $weeklyCrystalLimit개만 남기세요.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
-                  ),
-                ),
-              ...withDividers((e.value..sort((a, b) => g.bossIncome(b).compareTo(g.bossIncome(a))))
-                  .map((c) => ChoreTile(game: g, chore: c))),
-            ],
-          ),
-        ),
-    ];
-  }
 }
 
+/// 결정석 화면 공통 색
+const _weekColor = Color(0xFFE8833A);
+const _monthColor = Color(0xFF7C3AED);
+const _historyColor = Color(0xFF4F8EDC);
+
+/// 맨 위 요약: 이번 주(주간 보스) 수익 + 월간 보스는 따로 한 줄
 class _WeekPanel extends StatelessWidget {
   const _WeekPanel(this.g, this.now);
 
@@ -107,18 +48,21 @@ class _WeekPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final boss = g.chores.where((c) => c.isBoss).toList();
+    final boss = g.chores.where((c) => c.isBoss && !g.isMonthly(c)).toList();
+    final monthly = g.chores.where(g.isMonthly).toList();
     final expected = boss.fold<int>(0, (a, c) => a + g.bossIncome(c));
     final earned = boss.where((c) => g.isChoreDone(c, now)).fold<int>(0, (a, c) => a + g.bossIncome(c));
     final start = g.periodStart(ChorePeriod.weekly, now);
     final reset = DateTime(start.year, start.month, start.day + 7, g.resetHour);
     final left = reset.difference(now);
+    final mExpected = monthly.fold<int>(0, (a, c) => a + g.bossIncome(c));
+    final mEarned = monthly.where((c) => g.isChoreDone(c, now)).fold<int>(0, (a, c) => a + g.bossIncome(c));
 
     final rate = expected == 0 ? 0.0 : earned / expected;
     const muted = Color(0xFFA9ADB8);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -134,7 +78,7 @@ class _WeekPanel extends StatelessWidget {
           Row(
             children: [
               const Expanded(
-                child: Text('이번 주 결정석 수익',
+                child: Text('이번 주 결정석 · 주간 보스',
                     style: TextStyle(fontSize: 13, color: muted, fontWeight: FontWeight.w600)),
               ),
               Text(
@@ -167,6 +111,182 @@ class _WeekPanel extends StatelessWidget {
           if (boss.any((c) => g.isEos(c.charName)))
             Text('에오스 결정석은 ×${g.eosRate}로 본캐 월드 메소로 환산해 합산했어요',
                 style: const TextStyle(fontSize: 12, color: muted)),
+          if (monthly.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(height: 1, color: Color(0xFF3A3E4A)),
+            ),
+            Row(
+              children: [
+                const Icon(Icons.nightlight_round, size: 16, color: Color(0xFFC4B5FD)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('${monthStartLabel(g, now)} 월간 보스 (따로 계산)',
+                      style: const TextStyle(fontSize: 12.5, color: muted)),
+                ),
+                Text('${koreanNumber(mEarned)} / ${koreanNumber(mExpected)}',
+                    style: const TextStyle(fontSize: 13.5, color: Color(0xFFC4B5FD), fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// '11월'
+String monthStartLabel(Game g, DateTime now) => '${g.monthStart(now).month}월';
+
+/// 큰 버튼 두 개: 보스 고르기 · 가격표
+class _ActionRow extends StatelessWidget {
+  const _ActionRow(this.g);
+
+  final Game g;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget tile(IconData icon, Color color, String title, String sub, VoidCallback onTap) => Expanded(
+          child: Material(
+            color: Ui.card,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(11)),
+                      child: Icon(icon, color: color, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                          Text(sub,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: Ui.subtext)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Row(
+        children: [
+          tile(Icons.sports_martial_arts, _weekColor, '보스 고르기', '캐릭터별 보스 설정',
+              () => showBossChoreEditor(context, g)),
+          const SizedBox(width: 10),
+          tile(Icons.sell_outlined, const Color(0xFF6D4C41), '가격표', '결정석 가격 수정',
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PriceScreen(gameId: g.id)))),
+        ],
+      ),
+    );
+  }
+}
+
+/// 캐릭터별 이번 주 보스 체크 (주간 보스만)
+List<Widget> _weeklyPanels(BuildContext context, Game g) {
+  final boss = g.chores.where((c) => c.isBoss && !g.isMonthly(c)).toList();
+  if (boss.isEmpty) {
+    return [
+      AppSection(
+        title: '이번 주 보스 체크',
+        icon: Icons.task_alt,
+        accent: _weekColor,
+        subtitle: '아직 고른 보스가 없어요. 위의 "보스 고르기"에서 캐릭터별로 고르세요.',
+        child: const SizedBox(height: 6),
+      ),
+    ];
+  }
+  final byChar = <String, List<Chore>>{};
+  for (final c in boss) {
+    byChar.putIfAbsent(c.charName ?? '캐릭터 미지정', () => []).add(c);
+  }
+  final now = DateTime.now();
+  return [
+    for (final e in byChar.entries)
+      AppSection(
+        title: '이번 주 보스 · ${e.key}',
+        icon: Icons.task_alt,
+        accent: _weekColor,
+        subtitle: g.isEos(e.key)
+            ? '에오스 캐릭터 (결정석 ×${g.eosRate} → 본캐 메소) · 잡으면 눌러서 체크'
+            : '잡으면 눌러서 체크 · 오른쪽 "변경"으로 보스 바꾸기',
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          CountBadge('${e.value.where((c) => g.isChoreDone(c, now)).length}/${e.value.length}'),
+          TextButton(
+            onPressed: () => showBossChoreEditor(context, g, existing: e.value.first),
+            child: const Text('변경'),
+          ),
+        ]),
+        child: Column(
+          children: [
+            if (e.value.length > weeklyCrystalLimit)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
+                child: Text(
+                  '캐릭터당 주간 결정석 판매는 $weeklyCrystalLimit개까지예요. '
+                  '비싼 보스 위주로 $weeklyCrystalLimit개만 남기세요.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
+                ),
+              ),
+            ...withDividers((e.value..sort((a, b) => g.bossIncome(b).compareTo(g.bossIncome(a))))
+                .map((c) => ChoreTile(game: g, chore: c))),
+          ],
+        ),
+      ),
+  ];
+}
+
+/// 월간 보스 (검은 마법사 등): 주간 수익·판매 한도와 따로
+class _MonthlyPanel extends StatelessWidget {
+  const _MonthlyPanel(this.g, this.now);
+
+  final Game g;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final monthly = g.chores.where(g.isMonthly).toList();
+    if (monthly.isEmpty) return const SizedBox.shrink();
+    final earned = g.crystalMonthly[g.monthKey(now)] ?? 0;
+    final past = g.crystalMonthly.entries.where((e) => e.key != g.monthKey(now) && e.value > 0).toList()
+      ..sort((a, b) => b.key.compareTo(a.key));
+    return AppSection(
+      title: '월간 보스 · ${monthStartLabel(g, now)}',
+      icon: Icons.nightlight_round,
+      accent: _monthColor,
+      subtitle: '매월 1일 초기화 · 주간 수익과 판매 한도(12개)에는 안 들어가요',
+      trailing: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Text(koreanNumber(earned),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _monthColor)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...withDividers(monthly.map((c) => ChoreTile(game: g, chore: c))),
+          if (past.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              child: Text(
+                '지난 달: ${past.take(4).map((e) => '${int.parse(e.key.substring(6))}월 ${koreanNumber(e.value)}').join(' · ')}',
+                style: const TextStyle(fontSize: 12.5, color: Ui.subtext),
+              ),
+            ),
         ],
       ),
     );
@@ -196,10 +316,13 @@ class _HistoryPanel extends StatelessWidget {
         .fold<int>(0, (a, e) => a + e.value);
     final maxV = values.fold<int>(1, math.max);
 
+    final monthlyTotal = g.crystalMonthly.values.fold<int>(0, (a, b) => a + b);
     return AppSection(
       title: '주간 수익 기록',
-      accent: const Color(0xFF4F8EDC),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      icon: Icons.bar_chart_rounded,
+      accent: _historyColor,
+      subtitle: '최근 12주 · 주간 보스만 (월간 보스는 따로)',
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -247,8 +370,9 @@ class _HistoryPanel extends StatelessWidget {
             runSpacing: 6,
             children: [
               _chip('주 평균', koreanNumber(avg)),
-              _chip('이번 달', koreanNumber(month)),
+              _chip('이번 달 주간', koreanNumber(month)),
               _chip('누적', koreanNumber(total)),
+              if (monthlyTotal > 0) _chip('월간 보스 누적', koreanNumber(monthlyTotal)),
             ],
           ),
         ],
@@ -281,11 +405,14 @@ class _GoalPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final goals = g.goals.where((x) => x.autoMetric == 'crystal').toList();
     final boss = g.chores.where((c) => c.isBoss);
-    final weekly = boss.fold<int>(0, (a, c) => a + g.bossIncome(c));
+    // 한 주 속도 = 주간 보스 + 월간 보스를 주 단위로 나눈 값
+    final weekly = boss.fold<int>(0, (a, c) => a + (g.isMonthly(c) ? g.bossIncome(c) * 12 ~/ 52 : g.bossIncome(c)));
 
     return AppSection(
       title: '메소 목표',
+      icon: Icons.flag_outlined,
       accent: const Color(0xFF9C6ADE),
+      subtitle: '결정석 수익(주간 + 월간)이 자동으로 쌓여요',
       trailing: AddButton(tooltip: '메소 목표 추가', onPressed: () => _add(context)),
       child: goals.isEmpty
           ? const EmptyHint('예: 아케인 무기 사기 위해 50억 모으기 → 결정석 수익으로 자동 진행')
@@ -378,32 +505,28 @@ class _PricePanel extends StatefulWidget {
 }
 
 class _PricePanelState extends State<_PricePanel> {
-  bool _open = false;
+  bool _open = true;
 
   @override
   Widget build(BuildContext context) {
     final g = widget.g;
     final store = StoreScope.of(context);
-    final priced = g.bosses.where((b) => b.price > 0).length;
-    final list = [...g.bosses]..sort((a, b) => b.price.compareTo(a.price));
+    // 목록에서 뺀 저가 보스는 숨긴다 (쓰는 중이거나 직접 추가한 건 보임)
+    final used = {for (final c in g.chores) c.bossId};
+    final visible = g.bosses
+        .where((b) => isListedBoss(b.name) || used.contains(b.id) || !defaultBossPrices.any((e) => e.$1 == b.name))
+        .toList();
+    final priced = visible.where((b) => b.price > 0).length;
+    final list = [...visible]..sort((a, b) => b.price.compareTo(a.price));
 
     return AppSection(
       title: '결정석 가격표',
+      icon: Icons.sell_outlined,
       accent: const Color(0xFF6D4C41),
-      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        CountBadge('$priced/${g.bosses.length}'),
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          icon: Icon(_open ? Icons.expand_less : Icons.expand_more, color: Ui.subtext),
-          onPressed: () => setState(() => _open = !_open),
-        ),
-      ]),
+      subtitle: '보스를 누르면 가격을 고칠 수 있어요',
+      trailing: CountBadge('$priced/${visible.length}'),
       child: !_open && g.bosses.isNotEmpty
-          ? Padding(
-              padding: const EdgeInsets.all(10),
-              child: Text('가격이 바뀌면 여기서 수정하세요 (펼치기 ▼)',
-                  style: const TextStyle(color: Ui.subtext, fontSize: 13)),
-            )
+          ? const SizedBox.shrink()
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -416,7 +539,8 @@ class _PricePanelState extends State<_PricePanel> {
                 ),
                 ...withDividers(list.map((b) => ListTile(
                       dense: true,
-                      title: Text(b.monthly ? '${b.name} (월간)' : b.name),
+                      leading: BossIcon(splitBossName(b.name).$2, size: 32),
+                      title: Text(b.monthly || isMonthlyBossName(b.name) ? '${b.name} (월간)' : b.name),
                       trailing: Text(
                         b.price == 0 ? '가격 입력' : koreanNumber(b.price),
                         style: TextStyle(
@@ -557,7 +681,23 @@ Future<void> showBossChoreEditor(BuildContext context, Game g, {Chore? existing}
   );
 }
 
-/// 메이플 탭의 결정석 내용 (이번 주, 캐릭터별 보스, 기록, 가격표)
+/// 결정석 가격표 화면
+class _PriceScreen extends StatelessWidget {
+  const _PriceScreen({required this.gameId});
+
+  final String gameId;
+
+  @override
+  Widget build(BuildContext context) {
+    final g = StoreScope.of(context).gameById(gameId);
+    return AppScaffold(
+      title: '결정석 가격표',
+      body: g == null ? const SizedBox() : ListView(padding: const EdgeInsets.only(bottom: 32), children: [_PricePanel(g)]),
+    );
+  }
+}
+
+/// 메이플 탭의 결정석 내용: 요약 → 버튼(보스 고르기·가격표) → 이번 주 보스 → 월간 보스 → 기록
 class CrystalBody extends StatelessWidget {
   const CrystalBody(this.g, {super.key});
 
@@ -570,9 +710,10 @@ class CrystalBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _WeekPanel(g, now),
-        ...const CrystalScreen()._routinePanels(context, g),
+        _ActionRow(g),
+        ..._weeklyPanels(context, g),
+        _MonthlyPanel(g, now),
         _HistoryPanel(g, now),
-        _PricePanel(g),
       ],
     );
   }

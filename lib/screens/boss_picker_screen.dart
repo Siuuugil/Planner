@@ -122,8 +122,8 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
                             Text('에오스 결정석 ${koreanNumber(weeklyRaw)}',
                                 style: const TextStyle(fontSize: 13, color: Color(0xFFA9ADB8))),
                           if (monthlySum > 0)
-                            Text('월간 +${koreanNumber(monthlySum)}',
-                                style: const TextStyle(fontSize: 13, color: Color(0xFFE8B86A))),
+                            Text('+ 월간 보스 ${koreanNumber(monthlySum)} (따로 계산)',
+                                style: const TextStyle(fontSize: 13, color: Color(0xFFC4B5FD))),
                         ],
                       ),
                     ),
@@ -219,9 +219,22 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
-                _group(context, g, plan, '검밑솔 보스', bossCatalog.where((b) => !b.grandis && !b.monthly), change),
-                _group(context, g, plan, '그란디스 보스', bossCatalog.where((b) => b.grandis), change),
-                _group(context, g, plan, '월간 보스', bossCatalog.where((b) => b.monthly), change),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Text('난이도를 누르면 선택, 한 번 더 누르면 해제 · 오른쪽에서 파티 인원',
+                      style: TextStyle(fontSize: 12.5, color: Ui.subtext)),
+                ),
+                _group(context, g, plan, '주간 보스', '하드 스우 ~ 듄켈 (결정석 4천만 이하는 목록에서 뺐어요)',
+                    Icons.shield_outlined, const Color(0xFFE8833A),
+                    bossCatalog.where((b) => !b.grandis && !b.monthly), change),
+                _group(context, g, plan, '그란디스 보스', '세렌 이후', Icons.public, const Color(0xFF0E7490),
+                    bossCatalog.where((b) => b.grandis), change),
+                _group(context, g, plan, '월간 보스', '매월 1일 초기화 · 주간 수익과 판매 한도(12개)에 안 들어가요',
+                    Icons.nightlight_round, const Color(0xFF7C3AED), bossCatalog.where((b) => b.monthly), change),
+                if (retiredBossCatalog.any((b) => plan.containsKey(b.name)))
+                  _group(context, g, plan, '목록에서 뺀 보스', '예전에 고른 저가 보스예요. 눌러서 해제하세요.',
+                      Icons.archive_outlined, Ui.subtext,
+                      retiredBossCatalog.where((b) => plan.containsKey(b.name)), change),
               ],
             ),
           ),
@@ -237,11 +250,19 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
     Game g,
     Map<String, (String, int, Chore)> plan,
     String title,
+    String subtitle,
+    IconData icon,
+    Color accent,
     Iterable<BossDef> defs,
     void Function(void Function()) change,
   ) {
+    final n = defs.where((b) => plan.containsKey(b.name)).length;
     return AppSection(
       title: title,
+      icon: icon,
+      accent: accent,
+      subtitle: subtitle,
+      trailing: n == 0 ? null : CountBadge('$n개 선택'),
       child: Column(
         children: [
           for (final b in defs)
@@ -371,7 +392,8 @@ class _BossRow extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final d in def.difficulties)
+                    // 목록에서 뺀 난이도를 예전에 골라 뒀으면 그것도 보여서 해제할 수 있게
+                    for (final d in [...def.difficulties, if (selected != null && !def.difficulties.contains(selected)) selected!])
                       _DiffChip(
                         label: d,
                         color: colors[d]!,
@@ -406,11 +428,15 @@ class _BossRow extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 76,
-              child: Text(
-                koreanNumber((priceOf(selected!) ~/ party * rate).round()),
-                textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              width: 84,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  koreanNumber((priceOf(selected!) ~/ party * rate).round()),
+                  maxLines: 1,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],

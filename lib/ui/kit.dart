@@ -183,11 +183,19 @@ class AppSection extends StatelessWidget {
     this.trailing,
     required this.child,
     this.accent,
+    this.icon,
+    this.subtitle,
     this.margin = const EdgeInsets.fromLTRB(16, 0, 16, 12),
     this.padding = const EdgeInsets.only(bottom: 6),
   });
 
   final String? title;
+
+  /// 제목 앞 아이콘 (accent 색으로). 있으면 점 대신 보여준다.
+  final IconData? icon;
+
+  /// 제목 아래 한 줄 설명 (이 카드가 무슨 기능인지)
+  final String? subtitle;
   final Widget? trailing;
   final Widget child;
 
@@ -220,7 +228,10 @@ class AppSection extends StatelessWidget {
                 height: 32,
                 child: Row(
                   children: [
-                    if (accent != null) ...[
+                    if (icon != null) ...[
+                      Icon(icon, size: 18, color: accent ?? Ui.subtext),
+                      const SizedBox(width: 8),
+                    ] else if (accent != null) ...[
                       Container(
                         width: 8,
                         height: 8,
@@ -232,13 +243,20 @@ class AppSection extends StatelessWidget {
                       child: Text(
                         title!,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext),
+                        style: icon != null
+                            ? const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Ui.text)
+                            : const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext),
                       ),
                     ),
                     ?trailing,
                   ],
                 ),
               ),
+            ),
+          if (subtitle != null)
+            Padding(
+              padding: EdgeInsets.fromLTRB(icon != null ? 42 : 16, 0, 16, 6),
+              child: Text(subtitle!, style: const TextStyle(fontSize: 12.5, color: Ui.subtext, height: 1.4)),
             ),
           Padding(padding: padding, child: child),
         ],

@@ -108,7 +108,8 @@ List<Reminder> planReminders(
     final before = Duration(hours: s.choreHoursBefore);
     for (final g in store.games) {
       final daily = g.chores.where((c) => c.period == ChorePeriod.daily).toList();
-      final weekly = g.chores.where((c) => c.period == ChorePeriod.weekly).toList();
+      // 월간 보스는 주간 초기화와 상관없어서 뺀다
+      final weekly = g.chores.where((c) => c.period == ChorePeriod.weekly && !g.isMonthly(c)).toList();
 
       if (daily.isNotEmpty) {
         final start = g.periodStart(ChorePeriod.daily, now);

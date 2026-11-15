@@ -123,7 +123,7 @@ class AppStore extends ChangeNotifier {
       for (final c in g.chores) {
         final at = c.lastDone;
         if (at == null || marks.values.any((m) => m.choreId == c.id)) continue;
-        final week = g.weekKey(at);
+        final week = g.markKey(c, at);
         final id = DoneMark.idFor(c, week);
         marks[id] = DoneMark(
           id: id,
@@ -143,12 +143,21 @@ class AppStore extends ChangeNotifier {
     for (final g in games) {
       final latest = <String, DateTime>{};
       g.crystalLive.clear();
+      g.crystalMonthly.clear();
+      final byId = {for (final c in g.chores) c.id: c};
       for (final m in marks.values) {
         if (m.gameId != g.id) continue;
         final prev = latest[m.choreId];
         if (prev == null || m.at.isAfter(prev)) latest[m.choreId] = m.at;
         if (m.week != null && m.income != null) {
-          g.crystalLive[m.week!] = (g.crystalLive[m.week!] ?? 0) + m.income!;
+          // 월간 보스는 따로 (예전에 주간으로 기록된 검은 마법사도 그 달로 옮겨 센다)
+          final chore = byId[m.choreId];
+          if (m.week!.startsWith('M') || (chore != null && g.isMonthly(chore))) {
+            final k = g.monthKey(m.at);
+            g.crystalMonthly[k] = (g.crystalMonthly[k] ?? 0) + m.income!;
+          } else {
+            g.crystalLive[m.week!] = (g.crystalLive[m.week!] ?? 0) + m.income!;
+          }
         }
       }
       for (final c in g.chores) {
@@ -443,10 +452,10 @@ class AppStore extends ChangeNotifier {
   void toggleChore(Game g, Chore c) {
     final now = _clock();
     if (g.isChoreDone(c, now)) {
-      final start = g.periodStart(c.period, now);
+      final start = g.periodStartOf(c, now);
       marks.removeWhere((_, m) => m.choreId == c.id && !m.at.isBefore(start));
     } else {
-      final week = g.weekKey(now);
+      final week = g.markKey(c, now);
       final id = DoneMark.idFor(c, week);
       marks[id] = DoneMark(
         id: id,

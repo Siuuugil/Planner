@@ -51,6 +51,7 @@ class ChoreTile extends StatelessWidget {
           else
             koreanNumber(game.bossIncome(chore)),
           if (chore.partySize > 1) '${chore.partySize}인 파티',
+          if (game.isMonthly(chore)) '월간',
         ].join(' · ')),
         trailing: QuestMark(done: done, onTap: () => store.toggleChore(game, chore)),
         onTap: () => store.toggleChore(game, chore),

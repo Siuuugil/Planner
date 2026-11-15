@@ -108,20 +108,19 @@ void main() {
           for (final e in g.bossPlanOf(c).entries) '${e.value.$1} ${e.key}',
         };
 
-    test('검밑솔: 자쿰~듄켈 중 비싼 12개 (스우는 하드)', () {
+    test('검밑솔: 남은 검밑솔 보스 전부 가장 높은 난이도 (스우는 하드)', () {
       final g = fresh()..applyBossPreset('단풍이', BossPreset.geommilsol, id);
       expect(names(g, '단풍이'), {
         '하드 진 힐라', '하드 듄켈', '하드 윌', '카오스 가디언 엔젤 슬라임', '카오스 더스크', '하드 루시드',
-        '하드 스우', '하드 데미안', '카오스 파풀라투스', '카오스 벨룸', '하드 매그너스', '카오스 피에르',
+        '하드 스우', '하드 데미안',
       });
     });
 
-    test('하세이칼: 벨룸 뺀 상위 9 + 하드 세렌·이지 칼로스·이지 대적자 + 하드 검마', () {
+    test('하세이칼: 검밑솔 8 + 하드 세렌·이지 칼로스·이지 대적자 + 하드 검마', () {
       final g = fresh()..applyBossPreset('단풍이', BossPreset.haseikal, id);
       final s = names(g, '단풍이');
-      expect(s.length, 13);
-      expect(s, containsAll(['하드 선택받은 세렌', '이지 감시자 칼로스', '이지 최초의 대적자', '하드 검은 마법사', '카오스 파풀라투스']));
-      expect(s.contains('카오스 벨룸'), isFalse);
+      expect(s.length, 12);
+      expect(s, containsAll(['하드 선택받은 세렌', '이지 감시자 칼로스', '이지 최초의 대적자', '하드 검은 마법사', '하드 스우']));
     });
 
     test('노적노칼: 파풀·스우 빼고 칼로스·대적자 노멀 + 이지 카링·벨로나', () {
@@ -202,6 +201,99 @@ void main() {
       g.charWorlds['단풍이'] = 'main';
       store.commit();
       expect(g.isEos('단풍이'), isFalse);
+    });
+  });
+
+  group('보스 목록 정리', () {
+    test('결정석 4천만 이하는 빼고, 노멀 루시드·윌·듄켈·더스크·진힐라는 남김, 하드는 하드 스우부터', () {
+      const keep = {'노멀 루시드', '노멀 윌', '노멀 듄켈', '노멀 더스크', '노멀 진 힐라'};
+      for (final b in bossCatalog) {
+        for (final d in b.difficulties) {
+          final name = '$d ${b.name}';
+          final price = defaultBossPrices.firstWhere((e) => e.$1 == name).$2;
+          expect(price > 40000000 || keep.contains(name), isTrue, reason: name);
+        }
+      }
+      for (final k in keep) {
+        expect(isListedBoss(k), isTrue, reason: k);
+      }
+      for (final gone in ['노멀 스우', '노멀 데미안', '이지 루시드', '이지 윌', '하드 매그너스', '카오스 벨룸', '노멀 가디언 엔젤 슬라임']) {
+        expect(isListedBoss(gone), isFalse, reason: gone);
+      }
+      // 하드는 하드 스우(4,890만)가 가장 싸다
+      final hard = [for (final b in bossCatalog) if (b.difficulties.contains('하드') && !b.grandis && !b.monthly) b.name];
+      expect(hard.first, '스우');
+      expect(bossIconOf('벨룸'), 'vellum'); // 예전에 골라 둔 보스 아이콘은 유지
+    });
+  });
+
+  group('월간 보스 분리', () {
+    // 목요일 0시 주간 초기화, 하드 검마(월간) + 하드 루시드(주간)
+    Game game() => Game(
+          id: 'g',
+          name: '메이플스토리',
+          resetHour: 0,
+          weeklyResetWeekday: DateTime.thursday,
+          bosses: [
+            BossPrice(id: 'luc', name: '하드 루시드', price: 60000000),
+            BossPrice(id: 'bm', name: '하드 검은 마법사', price: 465000000), // 예전 데이터처럼 monthly 표시 없음
+          ],
+          chores: [
+            Chore(id: 'l', title: '하드 루시드', period: ChorePeriod.weekly, bossId: 'luc', charName: 'A'),
+            Chore(id: 'm', title: '하드 검은 마법사', period: ChorePeriod.weekly, bossId: 'bm', charName: 'A'),
+          ],
+        );
+
+    test('주간 수익에는 안 들어가고 월간으로 따로, 주가 바뀌어도 그 달엔 완료 유지', () async {
+      SharedPreferences.setMockInitialValues({});
+      var now = DateTime(2026, 11, 3, 12); // 화요일
+      final store = AppStore(await SharedPreferences.getInstance(), clock: () => now);
+      final g = game();
+      store.games.add(g);
+      store.commit();
+      expect(g.isMonthly(g.chores[1]), isTrue);
+      expect(g.isMonthly(g.chores[0]), isFalse);
+
+      store.toggleChore(g, g.chores[0]);
+      store.toggleChore(g, g.chores[1]);
+      expect(g.weekIncome[g.weekKey(now)], 60000000);
+      expect(g.crystalMonthly['M2026-11'], 465000000);
+
+      now = DateTime(2026, 11, 12, 12); // 다음 주 (11/5 목 초기화 지남)
+      store.commit();
+      expect(g.isChoreDone(g.chores[0], now), isFalse); // 주간 보스는 초기화
+      expect(g.isChoreDone(g.chores[1], now), isTrue); // 월간은 이번 달 계속 완료
+
+      now = DateTime(2026, 12, 2, 12); // 다음 달
+      store.commit();
+      expect(g.isChoreDone(g.chores[1], now), isFalse);
+      expect(g.crystalMonthly['M2026-11'], 465000000); // 지난 달 기록은 남음
+    });
+
+    test('예전에 주간으로 기록된 검마 완료는 그 달 월간으로 옮겨 센다', () async {
+      final g = game();
+      SharedPreferences.setMockInitialValues({});
+      final now = DateTime(2026, 11, 20, 12);
+      final store = AppStore(await SharedPreferences.getInstance(), clock: () => now);
+      store.games.add(g);
+      store.marks['done:m:2026-11-12'] = DoneMark(
+          id: 'done:m:2026-11-12', gameId: 'g', choreId: 'm', at: DateTime(2026, 11, 13, 21), week: '2026-11-12', income: 465000000);
+      store.commit();
+      expect(g.weekIncome['2026-11-12'], isNull);
+      expect(g.crystalMonthly['M2026-11'], 465000000);
+      expect(g.isChoreDone(g.chores[1], now), isTrue);
+    });
+
+    test('주간 숙제 알림의 남은 결정석에서 월간 보스는 빠진다', () async {
+      SharedPreferences.setMockInitialValues({});
+      final now = DateTime(2026, 11, 3, 12);
+      final store = AppStore(await SharedPreferences.getInstance(), clock: () => now);
+      store.games.add(game());
+      store.commit();
+      final r = planReminders(store, const NotifySettings(enabled: true, choreHoursBefore: 3), now)
+          .firstWhere((r) => r.key == 'cw:g');
+      expect(r.title, contains('1개'));
+      expect(r.body, contains('6000만'));
     });
   });
 }

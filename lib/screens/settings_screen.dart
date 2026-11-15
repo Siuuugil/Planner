@@ -326,6 +326,20 @@ class _AiPanelState extends State<_AiPanel> {
           ),
           const SizedBox(height: 10),
           OutlinedButton(onPressed: _check, child: const Text('연결 확인')),
+          const SizedBox(height: 14),
+          const Text('대화 말투', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: [for (final e in chatPersonas.entries) ButtonSegment(value: e.key, label: Text(e.value))],
+            selected: {widget.ai.persona},
+            onSelectionChanged: (s) => setState(() => widget.ai.persona = s.first),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text('친구: 반말·드립 섞어 편하게 · 연인: 다정하게 챙겨 주는 말투 (폰에서 보낸 대화에도 적용)',
+                style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
+          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('폰·웹 대화에 이 PC가 답하기'),
@@ -357,43 +371,45 @@ class _MyVoicePanel extends StatefulWidget {
 
 class _MyVoicePanelState extends State<_MyVoicePanel> {
   late final _url = TextEditingController(text: widget.mv.url);
+  final _text = TextEditingController();
   String? _status;
-  String _emotion = 'happy';
+  String _emotion = 'neutral';
+  bool _busy = false;
 
   static const _labels = {'neutral': '보통', 'happy': '기쁨', 'calm': '차분', 'sad': '아쉬움', 'excited': '신남'};
-  static const _samples = {
-    'neutral': '오늘 일정은 오후 세 시 회의 하나 있어요.',
-    'happy': '이번 주 보스 다 잡았네요! 진짜 잘했어요.',
-    'calm': '괜찮아요, 천천히 하나씩 하면 돼요.',
-    'sad': '아, 마감이 내일인데 아직 못 끝냈네요.',
-    'excited': '좋아요! 지금 바로 시작해 볼까요?',
-  };
 
   @override
   void dispose() {
     _url.dispose();
+    _text.dispose();
     super.dispose();
   }
 
   Future<void> _run(String label, Future<String> Function() job) async {
     widget.mv.url = _url.text;
-    setState(() => _status = label);
+    setState(() {
+      _status = label;
+      _busy = true;
+    });
     try {
       final r = await job();
       if (mounted) setState(() => _status = r);
     } catch (e) {
       if (mounted) setState(() => _status = '실패: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<String> _sample() async {
-    if (!widget.mv.enabled) return '먼저 위의 "AI 답을 내 목소리로"를 켜 주세요';
-    final text = _samples[_emotion]!;
-    final path = await widget.ai.sampleVoice(text, _emotion);
-    if (path == null) return '로그인해야 해요 (음성 파일을 계정 저장소에 올려서 폰에서도 들어요)';
-    if (!mounted) return '';
-    await VoiceScope.of(context)?.speak(text, audio: path);
-    return '재생했어요 (${_labels[_emotion]})';
+  /// 입력한 문장을 그대로 내 목소리로 읽기 (AI 없이, 업로드 없이 이 PC에서 바로)
+  Future<String> _readTyped() async {
+    final text = _text.text.trim();
+    if (text.isEmpty) return '읽을 문장을 입력해 주세요';
+    final voice = VoiceScope.of(context);
+    final clip = await widget.mv.speak(text, _emotion);
+    if (voice == null) return '재생할 수 없어요';
+    await voice.playClip(clip.bytes, clip.mime);
+    return '읽었어요 (${_labels[_emotion]})';
   }
 
   @override
@@ -423,12 +439,24 @@ class _MyVoicePanelState extends State<_MyVoicePanel> {
             decoration: const InputDecoration(labelText: '음성 서버 주소 (보통 그대로)'),
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(onPressed: () => _run('확인 중…', mv.health), child: const Text('연결 확인')),
+          ),
+          const SizedBox(height: 14),
+          const Text('직접 입력해서 듣기', style: TextStyle(fontWeight: FontWeight.w700)),
+          const Text('쓴 문장을 AI 없이 그대로 읽어요. 감정을 바꿔 가며 들어보세요.',
+              style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _text,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(hintText: '예: 오늘 하루도 고생 많았어. 얼른 씻고 자자.'),
+          ),
+          const SizedBox(height: 8),
+          Row(
             children: [
-              OutlinedButton(onPressed: () => _run('확인 중…', mv.health), child: const Text('연결 확인')),
               DropdownButton<String>(
                 value: _emotion,
                 underline: const SizedBox(),
@@ -440,10 +468,11 @@ class _MyVoicePanelState extends State<_MyVoicePanel> {
                 ],
                 onChanged: (v) => setState(() => _emotion = v!),
               ),
-              FilledButton.tonalIcon(
+              const Spacer(),
+              FilledButton.icon(
                 icon: const Icon(Icons.record_voice_over_outlined),
-                onPressed: () => _run('만드는 중… (처음엔 조금 걸려요)', _sample),
-                label: const Text('샘플 듣기'),
+                onPressed: _busy ? null : () => _run('만드는 중… (처음엔 조금 걸려요)', _readTyped),
+                label: const Text('읽어보기'),
               ),
             ],
           ),

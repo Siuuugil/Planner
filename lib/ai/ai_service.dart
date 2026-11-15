@@ -176,9 +176,26 @@ AiNote parseReport(Map<String, dynamic> json, DateTime now) {
   );
 }
 
+/// 대화 말투: 비서 · 친구 · 연인
+const chatPersonas = {'assistant': '비서', 'friend': '친구', 'lover': '연인'};
+
+String _personaLine(String persona, bool hideGames) {
+  final scope = '일정·할 일${hideGames ? '' : '·메이플스토리 숙제'}';
+  return switch (persona) {
+    'friend' => '너는 사용자의 오래된 부랄친구야. 반말로 편하고 거침없이 말해. 장난, 드립, 가벼운 욕도 자연스럽게 섞어도 돼. '
+        '돌려 말하거나 훈계하지 말고 친구처럼 솔직하게. $scope 말고 아무 얘기나 같이 떠들어도 돼. 필요하면 $scope도 챙겨 줘.',
+    'lover' => '너는 사용자를 아끼는 다정한 연인 같은 말투로 말해. 반말로, 애정 표현과 가벼운 애교, 장난스럽게 놀리기, '
+        '살짝 수위 있는 농담 정도는 괜찮아 (노골적인 성적 묘사는 하지 마). 사용자의 하루와 기분을 먼저 챙기고, '
+        '$scope는 챙겨 주는 느낌으로 말해. 일정 얘기가 아니어도 편하게 대화해.',
+    _ => '너는 사용자의 $scope를 같이 관리하는 비서야. 짧고 친근하게 한국어로 답해.',
+  };
+}
+
 /// 대화 프롬프트. 바꾸는 일은 actions로 제안만 하고, 사용자가 확인해야 적용된다.
-String chatPrompt(String message, String context, List<AiNote> history, DateTime now, {required bool hideGames}) => '''
-너는 사용자의 일정·할 일${hideGames ? '' : '·메이플스토리 숙제'}를 같이 관리하는 비서야. 짧고 친근하게 한국어로 답해.
+String chatPrompt(String message, String context, List<AiNote> history, DateTime now,
+        {required bool hideGames, String persona = 'assistant'}) =>
+    '''
+${_personaLine(persona, hideGames)} 한국어로 답하고, 소리 내어 읽기 좋게 너무 길지 않게.
 아래 [상황]과 [숫자]는 앱이 준 정확한 값이니 이것만 근거로 하고, 모르는 건 지어내지 마.${hideGames ? ' 게임 이야기는 하지 마 (회사 모드).' : ''}
 일정·할 일을 추가하거나 완료 처리해 달라는 요청이면 직접 했다고 하지 말고 actions로 제안해 (사용자가 확인 버튼을 눌러야 적용돼).
 도구는 쓰지 말고 JSON 객체 하나만 답해.
@@ -196,7 +213,7 @@ emotion: 답을 소리 내어 읽을 때의 말투. neutral(보통) · happy(축
 
 [상황]
 $context
-${history.isEmpty ? '' : '[최근 대화]\n${history.map((h) => '사용자: ${h.title}\n비서: ${h.body}').join('\n')}\n'}
+${history.isEmpty ? '' : '[최근 대화]\n${history.map((h) => '사용자: ${h.title}\n너: ${h.body}').join('\n')}\n'}
 사용자: $message''';
 
 /// 내 목소리 서버가 아는 감정
@@ -294,6 +311,14 @@ class AiService extends ChangeNotifier {
   }
 
   Future<String> checkCli() => ClaudeCli.version(executable: executable);
+
+  /// 대화 말투 (이 PC가 답할 때 적용 — 폰·웹에서 보낸 대화도 같음)
+  String get persona => _prefs.getString('chat_persona') ?? 'assistant';
+
+  set persona(String v) {
+    _prefs.setString('chat_persona', v);
+    notifyListeners();
+  }
 
   /// 폰·웹에서 보낸 대화에 이 PC가 답할지 (기본 켜짐)
   bool get serveRemote => _prefs.getBool(_serveKey) ?? true;
@@ -411,7 +436,7 @@ class AiService extends ChangeNotifier {
     final context = store.hideGames
         ? plannerContext(store, now)
         : '${plannerContext(store, now)}\n[숫자]\n${mapleContext(store, now)}';
-    return chatPrompt(message, context, history, now, hideGames: store.hideGames);
+    return chatPrompt(message, context, history, now, hideGames: store.hideGames, persona: persona);
   }
 
   /// 제안 작업 적용. 결과를 한 줄로 돌려준다 (못 찾으면 그 이유).

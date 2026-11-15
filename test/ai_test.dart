@@ -220,4 +220,14 @@ void main() {
   test('읽어줄 때 이모지·기호는 빼고 읽는다', () {
     expect(spokenText('✨ **오늘** 할 일 → 보고서 · 헬스'), '오늘 할 일 보고서 헬스');
   });
+
+  test('대화 말투: 비서·친구·연인에 따라 첫 줄이 바뀐다', () {
+    final now = DateTime(2026, 11, 15);
+    expect(chatPrompt('안녕', '', [], now, hideGames: false), contains('비서'));
+    expect(chatPrompt('안녕', '', [], now, hideGames: false, persona: 'friend'), contains('반말'));
+    final lover = chatPrompt('안녕', '', [], now, hideGames: true, persona: 'lover');
+    expect(lover, contains('연인'));
+    expect(lover, contains('노골적인 성적 묘사는 하지 마'));
+    expect(lover, isNot(contains('메이플')));
+  });
 }

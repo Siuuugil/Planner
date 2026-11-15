@@ -1,7 +1,12 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:game_planner/ai/voice.dart';
+import 'package:game_planner/data/store_scope.dart';
+import 'package:game_planner/screens/settings_screen.dart';
+import 'package:game_planner/ui/kit.dart';
 import 'package:game_planner/ai/ai_service.dart';
 import 'package:game_planner/ai/my_voice.dart';
 import 'package:game_planner/data/app_store.dart';
@@ -91,5 +96,34 @@ void main() {
     expect((clip.ext, clip.bytes.length, sent['emotion']), ('mp3', 3, 'happy'));
     expect(() => mv.speak('', 'neutral'),
         throwsA(isA<MyVoiceException>().having((e) => e.message, 'message', contains('비어'))));
+  });
+
+  testWidgets('설정: 직접 쓴 문장을 고른 감정으로 음성 서버에 그대로 보낸다', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows; // '내 목소리'는 PC 화면에만 나옴
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final store = AppStore(prefs);
+    final ai = AiService(store, prefs, askOverride: (_) async => {});
+    final sent = <Map<String, dynamic>>[];
+    final mv = MyVoice(prefs, client: MockClient((req) async {
+      sent.add(jsonDecode(req.body) as Map<String, dynamic>);
+      return http.Response.bytes(Uint8List.fromList([1, 2, 3]), 200, headers: {'content-type': 'audio/mpeg'});
+    }));
+    final voice = VoiceService(prefs);
+    await tester.pumpWidget(StoreScope(
+      store: store,
+      child: AiScope(
+        ai: ai,
+        child: VoiceScope(voice: voice, myVoice: mv, child: MaterialApp(theme: appTheme(), home: const SettingsScreen())),
+      ),
+    ));
+    await tester.scrollUntilVisible(find.text('읽어보기'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.enterText(find.widgetWithText(TextField, '').last, '자기야 오늘 고생했어');
+    await tester.tap(find.text('읽어보기'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(sent.single['text'], '자기야 오늘 고생했어');
+    expect(sent.single['emotion'], 'neutral');
+    debugDefaultTargetPlatformOverride = null;
   });
 }

@@ -149,6 +149,25 @@ class VoiceService extends ChangeNotifier {
     }
   }
 
+  /// 바로 받은 음성 데이터 재생 (설정의 '직접 입력해서 듣기' — 업로드 없이)
+  Future<void> playClip(Uint8List bytes, String mime) async {
+    await stopSpeaking();
+    speaking = true;
+    notifyListeners();
+    try {
+      final p = _player ??= AudioPlayer();
+      final done = p.onPlayerComplete.first;
+      await p.play(BytesSource(bytes, mimeType: mime));
+      await Future.any([
+        done,
+        p.onPlayerStateChanged.firstWhere((s) => s == PlayerState.stopped),
+      ]).timeout(const Duration(minutes: 3));
+    } finally {
+      speaking = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> _playAudio(String audio) async {
     try {
       final url = await resolveAudio?.call(audio);

@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../data/app_store.dart';
 import '../models/game.dart';
+import '../models/task.dart';
 import '../widgets/maple_widgets.dart' show koreanNumber;
 
 /// AI에게 보낼 오늘 상황 요약 (사람이 읽는 짧은 글).
@@ -177,5 +178,44 @@ String weekReviewContext(AppStore store, DateTime now) {
     b.writeln();
     b.write(mapleContext(store, now));
   }
+  return b.toString();
+}
+
+/// 업무 코치용 상황: 할 일 전체(업무·개인), 앞으로 2주 일정. 게임은 빼고.
+String workContext(AppStore store, DateTime now) {
+  final b = StringBuffer();
+  final day = DateTime(now.year, now.month, now.day);
+  String md(DateTime t) => DateFormat('M/d (E)', 'ko_KR').format(t);
+  String hm(DateTime t) => DateFormat('HH:mm').format(t);
+
+  b.writeln('[앞으로 2주 일정 (게임 제외)]');
+  var any = false;
+  for (var i = 0; i < 14; i++) {
+    final d = day.add(Duration(days: i));
+    for (final s in store.schedulesOn(d).where((s) => s.gameId == null)) {
+      any = true;
+      b.writeln('- ${md(d)} ${s.allDay ? '종일' : hm(s.start)} ${s.title}${s.done ? ' [완료]' : ''}'
+          '${s.memo.isNotEmpty ? ' — ${s.memo}' : ''}');
+    }
+  }
+  if (!any) b.writeln('- 없음');
+
+  final open = store.tasks.where((t) => !t.done).toList()
+    ..sort((a, b) => (a.due ?? DateTime(2100)).compareTo(b.due ?? DateTime(2100)));
+  for (final cat in TaskCategory.values) {
+    final list = open.where((t) => t.category == cat).take(30).toList();
+    b.writeln('\n[${cat.label} 할 일 ${list.length}개 (마감 순)]');
+    if (list.isEmpty) b.writeln('- 없음');
+    for (final t in list) {
+      String due = '마감 없음';
+      if (t.due != null) {
+        final left = DateTime(t.due!.year, t.due!.month, t.due!.day).difference(day).inDays;
+        due = '${md(t.due!)}까지 (${left == 0 ? '오늘' : left > 0 ? 'D-$left' : '${-left}일 지남'})';
+      }
+      b.writeln('- ${t.title} · $due${t.memo.isNotEmpty ? ' — ${t.memo}' : ''}');
+    }
+  }
+  final done = store.tasks.where((t) => t.done).length;
+  b.writeln('\n끝낸 할 일 누적 $done개');
   return b.toString();
 }

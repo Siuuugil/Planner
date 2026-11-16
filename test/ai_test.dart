@@ -4,6 +4,7 @@ import 'package:game_planner/ai/claude_cli.dart';
 import 'package:game_planner/ai/context.dart';
 import 'package:game_planner/data/app_store.dart';
 import 'package:game_planner/ai/voice.dart';
+import 'package:game_planner/screens/ai_screen.dart' show plainText;
 import 'package:game_planner/models/ai_note.dart';
 import 'package:game_planner/models/game.dart';
 import 'package:game_planner/models/maple_character.dart';
@@ -229,5 +230,62 @@ void main() {
     expect(lover, contains('연인'));
     expect(lover, contains('노골적인 성적 묘사는 하지 마'));
     expect(lover, isNot(contains('메이플')));
+  });
+
+  group('업무 코치', () {
+    test('상황: 게임 없이 업무·개인 할 일과 2주 일정, 마감 D-day', () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = AppStore(await SharedPreferences.getInstance());
+      final now = DateTime(2026, 11, 16, 10);
+      store.games.add(Game(id: 'g', name: '메이플스토리'));
+      store.schedules.addAll([
+        Schedule(id: 's1', title: '주간회의', start: DateTime(2026, 11, 18, 14)),
+        Schedule(id: 's2', title: '하드 윌', start: DateTime(2026, 11, 17, 21), gameId: 'g'),
+      ]);
+      store.tasks.addAll([
+        Task(id: 't1', title: '분기 보고서', category: TaskCategory.work, due: DateTime(2026, 11, 19), memo: '매출 표 포함'),
+        Task(id: 't2', title: '세금 신고', category: TaskCategory.etc, due: DateTime(2026, 11, 14)),
+        Task(id: 't3', title: '끝난 일', category: TaskCategory.work, done: true),
+      ]);
+      final c = workContext(store, now);
+      expect(c, allOf(contains('주간회의'), contains('분기 보고서'), contains('D-3'), contains('매출 표 포함'),
+          contains('세금 신고'), contains('2일 지남')));
+      expect(c, isNot(anyOf(contains('하드 윌'), contains('메이플'), contains('끝난 일'))));
+    });
+
+    test('답 해석: 완료·추가 제안만 받고, 일정은 항상 게임 아님', () {
+      final n = parseWorkCoach({
+        'answer': '보고서부터 하자',
+        'points': ['자료 모으기', ' '],
+        'actions': [
+          {'type': 'add_task', 'title': '자료 모으기', 'due': '2026-11-17', 'category': 'work'},
+          {'type': 'add_schedule', 'title': '집중 시간', 'date': '2026-11-17', 'time': '10:00', 'game': true},
+          {'type': 'check_chore', 'chore': '하드 윌'},
+        ],
+      }, '오늘 뭐부터?', DateTime(2026, 11, 16));
+      expect(n.type, 'work');
+      expect(n.bullets, ['자료 모으기']);
+      expect(n.actions.map((a) => a['type']), ['add_task', 'add_schedule']);
+      expect(n.actions[1]['game'], isFalse);
+    });
+
+    test('질문하면 업무 상황으로 묻고 결과를 저장한다', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final store = AppStore(prefs);
+      store.tasks.add(Task(id: 't', title: '분기 보고서', category: TaskCategory.work));
+      String? prompt;
+      final ai = AiService(store, prefs, askOverride: (p) async {
+        prompt = p;
+        return {'answer': '쪼개 볼게요', 'points': [], 'actions': []};
+      });
+      final note = await ai.workCoach('보고서 쪼개 줘');
+      expect(prompt, allOf(contains('분기 보고서'), contains('보고서 쪼개 줘'), contains('게임 이야기는 하지 마')));
+      expect(store.notes.single.id, note.id);
+    });
+  });
+
+  test('답의 마크다운 굵게·제목 기호는 지우고 보여준다', () {
+    expect(plainText('**1순위: 보험**\n## 다음\n내용'), '1순위: 보험\n다음\n내용');
   });
 }

@@ -34,6 +34,7 @@ class AiScreen extends StatelessWidget {
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
             ),
           ),
+          _WorkCoachSection(ai: ai != null && ai.supported ? ai : null),
           _PlanSection(ai: ai != null && ai.supported ? ai : null),
           _ReportSection(ai: ai != null && ai.supported ? ai : null),
           if (!StoreScope.of(context).hideGames) _CoachSection(ai: ai != null && ai.supported ? ai : null),
@@ -275,6 +276,10 @@ class PlanView extends StatelessWidget {
 }
 
 /// AI 노트 한 건 (리포트·코치 답변)
+/// 답에 섞여 온 마크다운 굵게(**)·제목(#) 기호 정리
+String plainText(String s) =>
+    s.replaceAll('**', '').replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '');
+
 class NoteCard extends StatelessWidget {
   const NoteCard(this.note, {super.key, this.showTitle = true, this.bulletsTitle});
 
@@ -291,7 +296,7 @@ class NoteCard extends StatelessWidget {
           Text(DateFormat('M/d HH:mm').format(note.createdAt),
               style: const TextStyle(fontSize: 11.5, color: Ui.subtext)),
           const SizedBox(height: 6),
-          Text(note.body, style: const TextStyle(height: 1.5)),
+          SelectableText(plainText(note.body), style: const TextStyle(height: 1.5)),
           if (note.bullets.isNotEmpty) ...[
             const SizedBox(height: 8),
             if (bulletsTitle != null)
@@ -346,10 +351,115 @@ class _ReportSectionState extends State<_ReportSection> {
         children: [
           if (_error != null) Text(_error!, style: const TextStyle(color: Ui.red)),
           if (report == null)
-            const Text('지난 7일 동안 한 일과 결정석·성장을 돌아보고 다음 주 할 일을 정리해 줘요.',
+            Text('지난 7일 동안 한 일${store.hideGames ? '' : '과 결정석·성장'}을 돌아보고 다음 주 할 일을 정리해 줘요.',
                 style: TextStyle(color: Ui.subtext))
           else
             NoteCard(report, bulletsTitle: '다음 주에 할 것'),
+        ],
+      ),
+    );
+  }
+}
+
+/// 업무 코치: 업무·개인 할 일 우선순위, 쪼개기, 준비, 초안 (게임 없이 — 회사 모드에서도 보임)
+class _WorkCoachSection extends StatefulWidget {
+  const _WorkCoachSection({required this.ai});
+
+  final AiService? ai;
+
+  @override
+  State<_WorkCoachSection> createState() => _WorkCoachSectionState();
+}
+
+class _WorkCoachSectionState extends State<_WorkCoachSection> {
+  final _q = TextEditingController();
+  String? _error;
+
+  static const presets = [
+    '오늘 뭐부터 하면 좋아?',
+    '이번 주 마감 정리해 줘',
+    '제일 급한 일 단계별로 쪼개 줘',
+    '내일 일정 준비할 것',
+  ];
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _ask(String q) async {
+    if (q.trim().isEmpty) return;
+    setState(() => _error = null);
+    try {
+      await widget.ai!.workCoach(q.trim());
+      _q.clear();
+    } on ClaudeCliException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final answers = store.notes.where((n) => n.type == 'work').take(5).toList();
+    final busy = widget.ai?.running != null;
+    return AppSection(
+      title: '업무 코치',
+      icon: Icons.work_outline,
+      accent: Ui.blue,
+      subtitle: '업무·개인 할 일 우선순위, 큰 일 쪼개기, 회의·보고 준비, 메일 초안 (게임은 안 봐요)',
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.ai != null) ...[
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final p in presets) ActionChip(label: Text(p), onPressed: busy ? null : () => _ask(p)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _q,
+              enabled: !busy,
+              minLines: 1,
+              maxLines: 4,
+              onSubmitted: _ask,
+              decoration: InputDecoration(
+                hintText: '예: 보고서 목요일까지인데 계획 짜 줘 / 팀장님께 일정 미뤄 달라는 메일 써 줘',
+                suffixIcon: IconButton(
+                  tooltip: '질문',
+                  icon: const Icon(Icons.arrow_upward_rounded),
+                  onPressed: busy ? null : () => _ask(_q.text),
+                ),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_error!, style: const TextStyle(color: Ui.red)),
+              ),
+            const SizedBox(height: 12),
+          ],
+          if (answers.isEmpty)
+            const Text('할 일과 일정을 보고 무엇부터 할지, 어떻게 나눌지 같이 정해 줘요. 할 일 추가는 확인 후 적용돼요.',
+                style: TextStyle(color: Ui.subtext))
+          else
+            for (final a in answers)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    NoteCard(a),
+                    if (a.actions.isNotEmpty) const SizedBox(height: 6),
+                    for (final act in a.actions) AiActionCard(note: a, action: act, enabled: widget.ai != null),
+                  ],
+                ),
+              ),
         ],
       ),
     );
@@ -395,6 +505,7 @@ class _CoachSectionState extends State<_CoachSection> {
     final busy = widget.ai?.running != null;
     return AppSection(
       title: '메이플 코치',
+      icon: Icons.auto_awesome,
       accent: Ui.purple,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: Column(

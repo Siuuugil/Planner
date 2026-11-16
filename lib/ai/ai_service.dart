@@ -137,6 +137,44 @@ $stats
 
 질문: $question''';
 
+/// 업무 코치 프롬프트 (게임 제외, 바꾸는 일은 actions로 제안)
+String workCoachPrompt(String question, String context, DateTime now) => '''
+너는 사용자의 업무와 개인 일을 같이 처리해 주는 코치야. 우선순위 정하기, 큰 일을 작은 단계로 쪼개기, 시간 배분,
+회의·보고 준비, 메일·메시지 초안처럼 일이 실제로 진행되게 구체적으로 도와줘. 담백하고 실용적으로, 한국어로.
+아래 [상황]은 앱이 준 정확한 값이니 이것만 근거로 하고, 모르는 건 지어내지 마. 게임 이야기는 하지 마.
+할 일을 새로 만들거나(쪼갠 단계 등), 일정을 넣거나, 끝난 일을 완료 처리하는 게 도움이 되면 actions로 제안해
+(직접 했다고 하지 마. 사용자가 확인 버튼을 눌러야 적용돼). 초안을 써 달라고 하면 answer에 초안 전체를 써.
+마크다운 기호(**, #, -)는 쓰지 말고, 번호나 줄바꿈으로만 정리해.
+도구는 쓰지 말고 JSON 객체 하나만 답해.
+
+${todayLine(now)}
+
+actions 종류:
+- {"type":"add_task","title":"...","due":"YYYY-MM-DD"|null,"category":"work"|"personal","memo":"..."}
+- {"type":"add_schedule","title":"...","date":"YYYY-MM-DD","time":"HH:MM"|null,"game":false,"memo":"..."}
+- {"type":"complete_task","title":"[상황]에 있는 할 일 제목 그대로"}
+
+형식: {"answer":"답","points":["바로 할 것 1~4개"],"actions":[...]}  (제안할 게 없으면 actions는 [])
+
+[상황]
+$context
+
+질문: $question''';
+
+AiNote parseWorkCoach(Map<String, dynamic> json, String question, DateTime now) => AiNote(
+      id: 'work:${now.microsecondsSinceEpoch}',
+      type: 'work',
+      title: question,
+      body: '${json['answer'] ?? ''}'.trim(),
+      createdAt: now,
+      bullets: [for (final p in (json['points'] as List? ?? [])) if ('$p'.trim().isNotEmpty) '$p'.trim()],
+      actions: [
+        for (final a in (json['actions'] as List? ?? []))
+          if (a is Map && const {'add_task', 'add_schedule', 'complete_task'}.contains(a['type']))
+            {...a.cast<String, dynamic>(), if (a['type'] == 'add_schedule') 'game': false},
+      ],
+    );
+
 /// 주간 리포트 프롬프트
 String reportPrompt(String review, DateTime now, {required bool hideGames}) => '''
 너는 사용자의 한 주를 돌아봐 주는 비서야. 아래 지난 7일 기록으로 짧은 주간 리포트를 써 줘.
@@ -403,6 +441,15 @@ class AiService extends ChangeNotifier {
     final now = DateTime.now();
     final json = await _ask('메이플 코치', coachPrompt(question, mapleContext(store, now), now));
     final note = parseCoach(json, question, now);
+    store.saveNote(note);
+    return note;
+  }
+
+  /// 업무 코치에게 질문 (게임 제외, 답은 저장·동기화)
+  Future<AiNote> workCoach(String question) async {
+    final now = DateTime.now();
+    final json = await _ask('업무 코치', workCoachPrompt(question, workContext(store, now), now));
+    final note = parseWorkCoach(json, question, now);
     store.saveNote(note);
     return note;
   }

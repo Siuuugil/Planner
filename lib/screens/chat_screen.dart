@@ -8,6 +8,7 @@ import '../data/store_scope.dart';
 import '../data/sync_service.dart';
 import '../models/ai_note.dart';
 import '../ui/kit.dart';
+import 'ai_screen.dart' show plainText;
 
 /// AI와 대화. 바꾸는 일은 제안 카드로 오고, '적용'을 눌러야 반영된다.
 class ChatScreen extends StatefulWidget {
@@ -178,7 +179,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       onSpeak: voice == null ? null : () => voice.speak(c.body, audio: c.audio),
                       myVoice: c.audio != null,
                     ),
-                  for (final a in c.actions) _ActionCard(note: c, action: a, enabled: canSend),
+                  for (final a in c.actions) AiActionCard(note: c, action: a, enabled: canSend),
                 ],
                 if (_pending != null) ...[
                   _Bubble(text: _pending!, mine: true),
@@ -305,7 +306,7 @@ class _Bubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(text, style: TextStyle(color: mine ? Colors.white : Ui.text, height: 1.45)),
+              Text(mine ? text : plainText(text), style: TextStyle(color: mine ? Colors.white : Ui.text, height: 1.45)),
               if (time != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -329,9 +330,9 @@ class _Bubble extends StatelessWidget {
       );
 }
 
-/// AI가 제안한 작업 카드: 적용하면 결과를 기록해 다시 적용되지 않게 한다
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({required this.note, required this.action, required this.enabled});
+/// AI가 제안한 작업 카드 (대화·업무 코치 공통): 적용하면 결과를 기록해 다시 적용되지 않게 한다
+class AiActionCard extends StatelessWidget {
+  const AiActionCard({super.key, required this.note, required this.action, required this.enabled});
 
   final AiNote note;
   final Map<String, dynamic> action;

@@ -21,12 +21,7 @@ class GameDetailScreen extends StatelessWidget {
     final daily = game.chores.where((c) => c.period == ChorePeriod.daily).toList();
     final weekly = game.chores.where((c) => c.period == ChorePeriod.weekly).toList();
     int doneOf(List<Chore> l) => l.where((c) => game.isChoreDone(c, now)).length;
-    final upcoming = store.schedules
-        .where((s) =>
-            s.gameId == game.id &&
-            !s.start.isBefore(DateTime(now.year, now.month, now.day)))
-        .toList()
-      ..sort((a, b) => a.start.compareTo(b.start));
+    final upcoming = store.schedulesBetween(now, 60).where((s) => s.gameId == game.id).take(20).toList();
 
     return AppScaffold(
       title: game.name,

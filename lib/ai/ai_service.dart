@@ -153,6 +153,8 @@ actions 종류:
 - {"type":"add_task","title":"...","due":"YYYY-MM-DD"|null,"category":"work"|"personal","memo":"..."}
 - {"type":"add_schedule","title":"...","date":"YYYY-MM-DD","time":"HH:MM"|null,"game":false,"memo":"..."}
 - {"type":"complete_task","title":"[상황]에 있는 할 일 제목 그대로"}
+- {"type":"add_steps","task":"[상황]에 있는 할 일 제목 그대로 (없으면 새 할 일 이름)","steps":["단계1","단계2"],"category":"work"|"personal","due":"YYYY-MM-DD"|null}
+  큰 일을 쪼갤 때는 할 일을 여러 개 만들지 말고 add_steps 하나로 그 할 일 안에 단계를 넣어.
 
 형식: {"answer":"답","points":["바로 할 것 1~4개"],"actions":[...]}  (제안할 게 없으면 actions는 [])
 
@@ -170,7 +172,7 @@ AiNote parseWorkCoach(Map<String, dynamic> json, String question, DateTime now) 
       bullets: [for (final p in (json['points'] as List? ?? [])) if ('$p'.trim().isNotEmpty) '$p'.trim()],
       actions: [
         for (final a in (json['actions'] as List? ?? []))
-          if (a is Map && const {'add_task', 'add_schedule', 'complete_task'}.contains(a['type']))
+          if (a is Map && const {'add_task', 'add_schedule', 'complete_task', 'add_steps'}.contains(a['type']))
             {...a.cast<String, dynamic>(), if (a['type'] == 'add_schedule') 'game': false},
       ],
     );
@@ -245,6 +247,7 @@ actions 종류:
 - {"type":"add_task","title":"...","due":"YYYY-MM-DD"|null,"category":"work"|"personal","memo":"..."}
 - {"type":"complete_task","title":"[상황]에 있는 할 일 제목 그대로"}
 - {"type":"check_chore","chore":"[상황]에 있는 숙제·보스 이름 그대로"}
+- {"type":"add_steps","task":"할 일 제목","steps":["단계1","단계2"]}  (큰 일을 쪼개 달라고 하면 그 할 일 안에 단계로)
 
 형식: {"reply":"답","emotion":"neutral","actions":[...]}  (제안할 게 없으면 actions는 [])
 emotion: 답을 소리 내어 읽을 때의 말투. neutral(보통) · happy(축하·칭찬) · calm(위로·차분) · sad(아쉬움·걱정) · excited(신남·응원) 중 하나
@@ -257,7 +260,7 @@ ${history.isEmpty ? '' : '[최근 대화]\n${history.map((h) => '사용자: ${h.
 /// 내 목소리 서버가 아는 감정
 const voiceEmotions = ['neutral', 'happy', 'calm', 'sad', 'excited'];
 
-const _actionTypes = {'add_schedule', 'add_task', 'complete_task', 'check_chore'};
+const _actionTypes = {'add_schedule', 'add_task', 'complete_task', 'check_chore', 'add_steps'};
 
 AiNote parseChat(Map<String, dynamic> json, String message, DateTime now) => AiNote(
       id: 'chat:${now.microsecondsSinceEpoch}',
@@ -277,6 +280,7 @@ String describeAction(Map<String, dynamic> a) => switch (a['type']) {
       'add_schedule' => '${a['game'] == true ? '게임 일정' : '일정'} 추가: ${a['title']} · ${a['date']} ${a['time'] ?? '종일'}',
       'add_task' => '할 일 추가: ${a['title']}${a['due'] == null ? '' : ' · ${a['due']}까지'}',
       'complete_task' => '할 일 완료: ${a['title']}',
+      'add_steps' => '단계 넣기: ${a['task']} ▸ ${(a['steps'] as List? ?? []).join(' / ')}',
       'check_chore' => '숙제 체크: ${a['chore']}',
       _ => '${a['type']}',
     };
@@ -582,9 +586,25 @@ class AiService extends ChangeNotifier {
       case 'complete_task':
         final t = store.tasks.where((t) => !t.done && t.title == '${a['title']}').firstOrNull;
         if (t == null) return '"${a['title']}" 할 일을 찾지 못했어요';
-        t.done = true;
+        t.complete(true, today: DateTime.now());
         store.commit();
-        return '완료로 표시했어요';
+        return t.done ? '완료로 표시했어요' : '이번 회차 완료 — 다음 마감으로 넘겼어요';
+      case 'add_steps':
+        final steps = [for (final s in (a['steps'] as List? ?? [])) if ('$s'.trim().isNotEmpty) '$s'.trim()];
+        if (steps.isEmpty) return '넣을 단계가 없어요';
+        var task = store.tasks.where((t) => !t.done && t.title == '${a['task']}').firstOrNull;
+        if (task == null) {
+          task = Task(
+            id: newId(),
+            title: '${a['task']}',
+            category: a['category'] == 'personal' ? TaskCategory.etc : TaskCategory.work,
+            due: DateTime.tryParse('${a['due']}'),
+          );
+          store.tasks.add(task);
+        }
+        task.steps.addAll(steps.map(TaskStep.new));
+        store.commit();
+        return '단계 ${steps.length}개를 넣었어요';
       case 'check_chore':
         final now = DateTime.now();
         for (final g in store.games) {

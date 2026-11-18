@@ -159,7 +159,7 @@ String weekReviewContext(AppStore store, DateTime now) {
   bool inWeek(DateTime t) => !t.isBefore(from) && t.isBefore(now);
   final hide = store.hideGames;
 
-  final sch = store.schedules.where((s) => inWeek(s.start) && (!hide || s.gameId == null)).toList();
+  final sch = store.schedulesBetween(from, 7).where((s) => inWeek(s.start) && (!hide || s.gameId == null)).toList();
   b.writeln('[지난 7일 (${DateFormat('M/d').format(from)}~${DateFormat('M/d').format(now)})]');
   b.writeln('- 일정 ${sch.length}개 중 완료 ${sch.where((s) => s.done).length}개');
   final dueTasks = store.tasks.where((t) => t.due != null && inWeek(t.due!)).toList();
@@ -212,7 +212,10 @@ String workContext(AppStore store, DateTime now) {
         final left = DateTime(t.due!.year, t.due!.month, t.due!.day).difference(day).inDays;
         due = '${md(t.due!)}까지 (${left == 0 ? '오늘' : left > 0 ? 'D-$left' : '${-left}일 지남'})';
       }
-      b.writeln('- ${t.title} · $due${t.memo.isNotEmpty ? ' — ${t.memo}' : ''}');
+      b.writeln('- ${t.title} · $due${t.repeat != null ? ' (반복: ${t.repeat!.label(t.due ?? now)})' : ''}${t.memo.isNotEmpty ? ' — ${t.memo}' : ''}');
+      if (t.steps.isNotEmpty) {
+        b.writeln('  단계: ${t.steps.map((s) => '${s.done ? '✓' : '·'}${s.title}').join(' / ')}');
+      }
     }
   }
   final done = store.tasks.where((t) => t.done).length;

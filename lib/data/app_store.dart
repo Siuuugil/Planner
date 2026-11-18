@@ -434,13 +434,31 @@ class AppStore extends ChangeNotifier {
     return null;
   }
 
+  /// [day]의 일정 (반복 일정은 그날 회차로 펼침)
   List<Schedule> schedulesOn(DateTime day) =>
-      schedules.where((s) => isSameDay(s.start, day)).toList()
+      [for (final s in schedules) if (s.occursOn(day)) s.occurrence(day)]
         ..sort((a, b) => a.start.compareTo(b.start));
+
+  /// 앞으로 [days]일 동안의 일정 (반복 펼침, 시간순)
+  List<Schedule> schedulesBetween(DateTime from, int days) => [
+        for (var i = 0; i < days; i++) ...schedulesOn(DateTime(from.year, from.month, from.day + i)),
+      ];
 
   void upsertSchedule(Schedule s) {
     final i = schedules.indexWhere((e) => e.id == s.id);
     i < 0 ? schedules.add(s) : schedules[i] = s;
+    commit();
+  }
+
+  /// 일정 완료 표시 (반복이면 그날 회차만)
+  void setScheduleDone(Schedule s, bool v) {
+    s.setDone(v);
+    commit();
+  }
+
+  /// 할 일 완료 (반복이면 마감이 다음 회차로)
+  void setTaskDone(Task t, bool v) {
+    t.complete(v, today: _clock());
     commit();
   }
 

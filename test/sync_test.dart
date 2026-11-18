@@ -283,4 +283,27 @@ void main() {
     store.commit();
     expect(store.pending, isEmpty);
   });
+
+  test('서버에서 받은 할 일의 모르는 필드·단계는 앱에서 고쳐 올려도 그대로 남는다', () async {
+    final store = await open();
+    store.applyRemote([
+      SyncRow(
+        id: 't',
+        kind: 'task',
+        data: {
+          'id': 't', 'title': '분기 보고서', 'category': 'work', 'memo': '', 'due': null, 'done': false,
+          'steps': [{'title': '자료', 'done': false}],
+          'source': 'todo-app', // 할 일 앱이 넣은 필드
+        },
+        deleted: false,
+        updatedAt: now.subtract(const Duration(minutes: 1)),
+      ),
+    ]);
+    final t = store.tasks.single;
+    t.steps.single.done = true;
+    store.commit();
+    final up = store.pending['t']!.data!;
+    expect(up['source'], 'todo-app');
+    expect((up['steps'] as List).single, {'title': '자료', 'done': true});
+  });
 }

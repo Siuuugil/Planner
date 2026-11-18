@@ -358,16 +358,17 @@ class _ScheduleRow extends StatelessWidget {
     return _Row(
       lead: s.allDay ? '종일' : DateFormat('HH:mm').format(s.start),
       title: s.title,
-      subtitle: [if (game != null) '게임 · ${game.name}' else '일정', if (s.memo.isNotEmpty) s.memo].join(' · '),
+      subtitle: [
+        if (game != null) '게임 · ${game.name}' else '일정',
+        if (s.isRepeat) '🔁 ${s.repeat!.label(s.root.start)}',
+        if (s.memo.isNotEmpty) s.memo,
+      ].join(' · '),
       subtitleColor: game != null ? Ui.purple : Ui.subtext,
       strike: s.done,
       onTap: () => showScheduleEditor(context, existing: s),
       trailing: CheckCircle(
         value: s.done,
-        onChanged: (v) {
-          s.done = v;
-          store.commit();
-        },
+        onChanged: (v) => store.setScheduleDone(s, v),
       ),
     );
   }
@@ -389,16 +390,15 @@ class _TaskRow extends StatelessWidget {
       subtitle: [
         t.category.label,
         if (overdue) '${DateFormat('M/d').format(t.due!)}까지',
+        if (t.repeat != null) '🔁',
+        if (t.steps.isNotEmpty) '단계 ${t.stepsDone}/${t.steps.length}',
         if (t.memo.isNotEmpty) t.memo,
       ].join(' · '),
       strike: t.done,
       onTap: () => showTaskEditor(context, t.category, existing: t),
       trailing: CheckCircle(
         value: t.done,
-        onChanged: (v) {
-          t.done = v;
-          store.commit();
-        },
+        onChanged: (v) => store.setTaskDone(t, v),
       ),
     );
   }

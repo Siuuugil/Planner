@@ -1,5 +1,6 @@
 import '../data/app_store.dart';
 import '../models/game.dart';
+import '../models/repeat.dart';
 import '../widgets/maple_widgets.dart' show koreanNumber;
 
 /// 알림 설정 (기기별, 동기화 안 함).
@@ -83,14 +84,16 @@ List<Reminder> planReminders(
   DateTime atHour(DateTime d) => DateTime(d.year, d.month, d.day, s.taskHour);
 
   if (s.scheduleLeadMinutes > 0) {
-    for (final e in store.schedules) {
+    // 반복 일정은 날짜마다 펼쳐서 (회차마다 알림 키가 다름)
+    for (final e in store.schedulesBetween(now, days + 1)) {
       if (e.done) continue;
       final kind = e.gameId == null ? '📅 일정' : '🎮 게임 일정';
+      final key = e.isRepeat ? 's:${e.id}:${dayKey(e.start)}' : 's:${e.id}';
       if (e.allDay) {
-        add(Reminder('s:${e.id}', atHour(e.start), '$kind · 오늘', e.title));
+        add(Reminder(key, atHour(e.start), '$kind · 오늘', e.title));
       } else {
         add(Reminder(
-          's:${e.id}',
+          key,
           e.start.subtract(Duration(minutes: s.scheduleLeadMinutes)),
           '$kind · ${s.scheduleLeadMinutes}분 뒤',
           e.title,

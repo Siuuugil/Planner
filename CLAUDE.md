@@ -38,8 +38,9 @@ Supabase 프로젝트 `game-planner`(서울)의 `public.items` 테이블 하나�
 
 ### 그 밖의 공유 자원
 
-- **Supabase Storage `voice` 버킷** (비공개, 최대 5MB, mp3/wav): AI 답을 '내 목소리'로 만든 음성. 경로 `<user_id>/<노트 id>.mp3`, RLS로 본인 폴더만. 재생은 서명 URL(10분). 대화를 지우면 파일도 지움 (`AiService.deleteChats`).
+- **Supabase Storage `voice` 버킷** (비공개, 최대 5MB, mp3/wav): AI 답을 '내 목소리'로 만든 음성. 경로 `<user_id>/<노트 id>.mp3`, RLS로 본인 폴더만. 재생은 서명 URL(10분). 대화를 지우면 파일도 지움 (`AiService.deleteChats`·`deleteChatPart`). PC 앱이 켠 지 1분 뒤 어느 노트에도 안 쓰이는 파일을 정리한다 (SQL로는 storage 파일을 못 지움 — Storage API만).
 - **`ai` 행 type `auto`** (id `auto:<날짜>`): 그날 AI 자동 실행을 잡은 PC 표시 (`by`·`claimedAt`, 여러 PC 중 한 대만). 화면엔 안 보임.
+- 대화 한쪽만 지우면 `title`(내 말) 또는 `body`(답)를 빈 글로 저장, 둘 다 비면 행을 지운다.
 - **`ai` 행의 대화 상태** (`AiNote.status`): 폰·웹은 질문을 `{type:'chat', status:'pending'}`로 쓰고, PC 앱이 `'working'`으로 잡은 뒤 답을 채우며 `status`를 지운다 (`null` = 답 완료, `'error'` = 실패). 여러 PC가 켜져 있으면 `by`(기기 id)로 한 대만 답한다. 다른 앱이 `ai` 행을 읽을 때 이 값을 참고.
 
 ## AI · 음성 구조

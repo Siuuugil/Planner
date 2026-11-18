@@ -355,6 +355,31 @@ class AiService extends ChangeNotifier {
     if (audio.isNotEmpty) voiceRemover?.call(audio).catchError((_) {});
   }
 
+  /// 대화 한쪽만 지우기: [question]이면 내 말, 아니면 AI 답(제안·음성 포함).
+  /// 남는 게 없으면(또는 아직 답을 기다리는 질문을 지우면) 대화 통째로 지운다.
+  void deleteChatPart(AiNote c, {required bool question}) {
+    final title = question ? '' : c.title;
+    final body = question ? c.body : '';
+    if ((title.isEmpty && body.isEmpty) || (question && c.waiting)) {
+      deleteChats([c]);
+      return;
+    }
+    if (!question && c.audio != null) voiceRemover?.call([c.audio!]).catchError((_) {});
+    store.saveNote(AiNote(
+      id: c.id,
+      type: c.type,
+      title: title,
+      body: body,
+      createdAt: c.createdAt,
+      actions: question ? c.actions : null,
+      status: question ? c.status : null,
+      emotion: question ? c.emotion : null,
+      audio: question ? c.audio : null,
+      by: c.by,
+      claimedAt: c.claimedAt,
+    ));
+  }
+
   static const _pathKey = 'claude_cli_path';
   static const _serveKey = 'serve_remote_chat';
   final AppStore store;
@@ -555,7 +580,7 @@ class AiService extends ChangeNotifier {
   String _chatPromptFor(String message, {String? excludeId}) {
     final now = DateTime.now();
     final history = store.notes
-        .where((n) => n.type == 'chat' && n.id != excludeId && n.status == null && n.body.isNotEmpty)
+        .where((n) => n.type == 'chat' && n.id != excludeId && n.status == null && n.body.isNotEmpty && n.title.isNotEmpty)
         .take(6)
         .toList()
         .reversed

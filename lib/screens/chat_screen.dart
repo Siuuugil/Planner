@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../ai/ai_service.dart';
@@ -163,7 +164,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                 for (final c in chats) ...[
-                  _Bubble(text: c.title, mine: true),
+                  if (c.title.isNotEmpty)
+                    _Bubble(text: c.title, mine: true, onDelete: ai == null ? null : () => ai.deleteChatPart(c, question: true)),
                   if (c.waiting)
                     _Waiting(c.status == 'working' ? 'PC가 답하는 중…' : 'PC 앱이 받기를 기다리는 중…')
                   else if (c.status == 'error')
@@ -171,13 +173,14 @@ class _ChatScreenState extends State<ChatScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Text('답을 못 받았어요: ${c.body}', style: TextStyle(color: Ui.red)),
                     )
-                  else
+                  else if (c.body.isNotEmpty)
                     _Bubble(
                       text: c.body,
                       mine: false,
                       time: c.createdAt,
                       onSpeak: voice == null ? null : () => voice.speak(c.body, audio: c.audio),
                       myVoice: c.audio != null,
+                      onDelete: ai == null ? null : () => ai.deleteChatPart(c, question: false),
                     ),
                   for (final a in c.actions) AiActionCard(note: c, action: a, enabled: canSend),
                 ],
@@ -281,7 +284,7 @@ class _VoiceBar extends StatelessWidget {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.text, required this.mine, this.time, this.onSpeak, this.myVoice = false});
+  const _Bubble({required this.text, required this.mine, this.time, this.onSpeak, this.myVoice = false, this.onDelete});
 
   final String text;
   final bool mine;
@@ -291,10 +294,42 @@ class _Bubble extends StatelessWidget {
   /// 내 목소리 음성이 붙은 답
   final bool myVoice;
 
+  /// 말풍선 지우기 (우클릭·길게 누르기 메뉴)
+  final VoidCallback? onDelete;
+
+  /// 우클릭(PC)·길게 누르기(폰) 메뉴: 복사 · 삭제
+  Future<void> _menu(BuildContext context, Offset at) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final pick = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(at & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        const PopupMenuItem(value: 'copy', child: ListTile(dense: true, leading: Icon(Icons.copy, size: 18), title: Text('복사'))),
+        if (onDelete != null)
+          PopupMenuItem(
+            value: 'delete',
+            child: ListTile(
+              dense: true,
+              leading: Icon(Icons.delete_outline, size: 18, color: Ui.red),
+              title: Text(mine ? '내 말 삭제' : 'AI 답 삭제', style: TextStyle(color: Ui.red)),
+            ),
+          ),
+      ],
+    );
+    if (pick == 'copy') {
+      await Clipboard.setData(ClipboardData(text: mine ? text : plainText(text)));
+    } else if (pick == 'delete') {
+      onDelete?.call();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
+        child: GestureDetector(
+          onSecondaryTapUp: (d) => _menu(context, d.globalPosition),
+          onLongPressStart: (d) => _menu(context, d.globalPosition),
+          child: Container(
           constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
           margin: const EdgeInsets.symmetric(vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -326,6 +361,7 @@ class _Bubble extends StatelessWidget {
                 ),
             ],
           ),
+        ),
         ),
       );
 }

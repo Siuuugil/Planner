@@ -9,9 +9,9 @@
 그래서 결재함 화면은 집 PC에만 있고 GitHub에 올라간 적이 없다. 노트북 서버는 이 파일이 없어서 마을 지도 🔔 결재 → `/inbox`가 404.
 `.gitignore`는 이미 `/inbox/`로 고쳐서 올라가 있다.
 
-- [ ] 집 PC `llm-wiki` 폴더에서 `git pull` (고친 `.gitignore` 받기)
-- [ ] `git status --short`로 새로 보이는 inbox 관련 파일 확인 — `app/inbox/` 말고도 `app/api/inbox/`, `lib/inbox/` 등 같은 이유로 빠진 폴더가 있으면 같이
-- [ ] 커밋 후 푸시
+- [x] 집 PC `llm-wiki` 폴더에서 `git pull` (고친 `.gitignore` 받기)
+- [x] `git status --short`로 새로 보이는 inbox 관련 파일 확인 — `app/inbox/` 말고도 `app/api/inbox/`, `lib/inbox/` 등 같은 이유로 빠진 폴더가 있으면 같이
+- [x] 커밋 후 푸시
 - [ ] 노트북 서버: `git pull` → `npm install` → `npm run build` → 서버 재시작
 - [ ] 노트북에서 🔔 결재 → `/inbox`가 404 없이 열리는지
 

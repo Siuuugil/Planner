@@ -59,7 +59,7 @@ class OllamaClient {
   }
 }
 
-/// 모델 답에서 JSON 객체 꺼내기 (앞뒤 군더더기·<think> 블록·코드블록이 있어도)
+/// 모델 답에서 JSON 객체 꺼내기 (앞뒤 군더더기·`<think>` 블록·코드블록이 있어도)
 Map<String, dynamic> parseJsonObject(String text) {
   var t = text.replaceAll(RegExp(r'<think>[\s\S]*?</think>'), '').trim();
   final a = t.indexOf('{'), b = t.lastIndexOf('}');

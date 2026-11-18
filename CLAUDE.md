@@ -18,13 +18,13 @@ Supabase 프로젝트 `game-planner`(서울)의 `public.items` 테이블 하나�
 | kind | 누가 씀 | 내용 |
 |---|---|---|
 | `schedule` `game` `task` `maple` `mark` `ai` | MyPlanner | 앱 데이터 (모델별 `toJson()`) |
-| `inbox` | MyPlanner가 **쓰기만** | 📥 수집: `data = { text, source: 'planner', at: <ISO> }`. PC 마을이 디스코드 DM(할 일로 / 마을 서재로 / 버리기)으로 처리한 뒤 `deleted: true` + 새 `updated_at` |
+| `inbox` | MyPlanner가 쓰고, 목록으로 **보여주기만** | 📥 수집: `data = { text, source: 'planner', at: <ISO> }`. PC 마을이 디스코드 DM(할 일로 / 마을 서재로 / 버리기)으로 처리한 뒤 `deleted: true` + 새 `updated_at` (앱은 이걸 '처리됨'으로 표시). 앱은 inbox 행을 수정·삭제하지 않는다 |
 | `event` | PC 마을 쪽 | 폰 푸시 + 디스코드 DM 알림. **앱에서는 아직 쓰지 않는다** (앱은 자체 로컬 알림 사용) |
 
 규칙:
 - `data`는 일반 JSON만.
 - 병합은 `updated_at`이 더 최신인 쪽이 이김 (DB 트리거 `items_keep_newer`가 오래된 업데이트를 버림).
-- 앱이 모르는 `kind`는 `AppStore.applyRemote`에서 **무시**한다 (지우거나 덮어쓰지 말 것).
+- 앱이 모르는 `kind`(`event` 등)는 `AppStore.applyRemote`에서 **무시**한다 (지우거나 덮어쓰지 말 것).
 - 새 `kind`를 추가하려면 실제 DB 제약도 바꿔야 함 — 라이브 DB는 사용자 확인 없이 건드리지 않는다. `schema.sql`은 기록용.
 
 ### 그 밖의 공유 자원
@@ -42,7 +42,8 @@ Supabase 프로젝트 `game-planner`(서울)의 `public.items` 테이블 하나�
 
 - `AppStore`: 로컬 상태(SharedPreferences JSON). `commit()` → `_diff()`가 바뀐 레코드를 `pending`에 쌓음.
 - `SyncService`: 로그인·앱 복귀·로컬 변경 시 전체 받아 `applyRemote` → `pending` 업로드(upsert). Realtime으로 즉시 반영.
-- `AppStore.addCapture(text)`: `inbox` 행을 `pending`에만 넣음 (`_known`에 안 넣어서 `_diff`가 삭제로 오해하지 않음). 앱에 목록은 없음.
+- `AppStore.addCapture(text)`: `inbox` 행을 `pending`에 넣고 `captures`(최근 수집 목록)에도 추가. `_known`에는 안 넣어서 `_diff`가 삭제로 오해하지 않음.
+- 서버의 `inbox` 행은 `applyRemote` → `_applyCapture`로 `captures`에 반영 (`deleted` = PC 마을이 처리함). 최근 `AppStore.maxCaptures`(50)개만 로컬 저장, 화면은 `lib/screens/capture_screen.dart`.
 - Android 공유(`text/plain`) → `MainActivity.kt` → MethodChannel `myplanner/share` → `lib/data/capture.dart`의 `ShareIntake`.
 
 ## 작업 규칙

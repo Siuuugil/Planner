@@ -40,6 +40,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return AppScaffold(
       title: '캘린더',
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-calendar',
         tooltip: '일정 추가',
         onPressed: () => showScheduleEditor(context, day: _selected),
         child: const Icon(Icons.add, size: 28),

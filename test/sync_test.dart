@@ -198,6 +198,9 @@ void main() {
     expect(row.data, {'text': '나중에 읽기 https://example.com', 'source': 'planner', 'at': now.toIso8601String()});
     expect(row.toJson()['updated_at'], now.toIso8601String());
     expect(store.pending[row.id], same(row));
+    final c = store.recentCaptures.single;
+    expect((c.id, c.text, c.done), (row.id, '나중에 읽기 https://example.com', false));
+    expect(store.isCaptureUploading(c), isTrue);
 
     // 앱을 다시 열어도 아직 못 올린 수집은 남아 있다
     final reopened = await open();
@@ -210,9 +213,57 @@ void main() {
 
     reopened.markPushed(reopened.pending.values.toList());
     expect(reopened.pending, isEmpty);
+    expect(reopened.recentCaptures.single.text, '나중에 읽기 https://example.com');
+    expect(reopened.isCaptureUploading(reopened.recentCaptures.single), isFalse);
+
+    // 서버에서 같은 행이 되돌아와도(실시간 echo) 그대로
+    reopened.applyRemote([row]);
+    expect(reopened.recentCaptures.single.done, isFalse);
+
+    // PC 마을이 처리하면 처리됨으로 바뀌고, 그래도 다시 올리지 않는다
+    reopened.applyRemote([
+      SyncRow(id: row.id, kind: 'inbox', data: row.data, deleted: true, updatedAt: now.add(const Duration(seconds: 1))),
+    ]);
+    expect(reopened.recentCaptures.single.done, isTrue);
+    expect(reopened.pending, isEmpty);
+    reopened.commit();
+    expect(reopened.pending, isEmpty);
+    expect((await open()).recentCaptures.single.done, isTrue);
   });
 
-  test('PC 마을이 처리한 inbox·event 행은 받아도 무시한다', () async {
+  test('다른 기기·앱의 수집도 목록에 보이고, 최근 50개만 남는다', () async {
+    final store = await open();
+    SyncRow inbox(int i, {bool deleted = false}) => SyncRow(
+          id: 'c$i',
+          kind: 'inbox',
+          data: {'text': '수집 $i', 'source': 'test', 'at': now.add(Duration(minutes: i)).toIso8601String()},
+          deleted: deleted,
+          updatedAt: now.add(Duration(minutes: i)),
+        );
+    store.applyRemote([for (var i = 0; i < 60; i++) inbox(i, deleted: i.isEven)]);
+    final list = store.recentCaptures;
+    expect(list, hasLength(AppStore.maxCaptures));
+    expect(list.first.text, '수집 59');
+    expect(list.last.text, '수집 10');
+    expect(list.first.source, 'test');
+    expect(list.firstWhere((c) => c.id == 'c58').done, isTrue);
+    expect(store.pending, isEmpty);
+
+    // 가장 오래된 것보다 오래된 행은 다시 와도 넣지 않는다
+    store.applyRemote([inbox(3)]);
+    expect(store.captures.containsKey('c3'), isFalse);
+
+    // 내용 없이 처리 표시만 온 모르는 행은 무시
+    store.applyRemote([
+      SyncRow(id: 'z', kind: 'inbox', data: null, deleted: true, updatedAt: now.add(const Duration(hours: 2))),
+    ]);
+    expect(store.captures.containsKey('z'), isFalse);
+
+    store.clearAll();
+    expect(store.captures, isEmpty);
+  });
+
+  test('event 행과 내용 없는 inbox 행은 받아도 앱 데이터를 건드리지 않는다', () async {
     final store = await open();
     store.upsertSchedule(sched('a', '레이드'));
     store.markPushed(store.pending.values.toList());
@@ -227,6 +278,7 @@ void main() {
     ]);
     expect(store.schedules.single.title, '레이드');
     expect(store.tasks, isEmpty);
+    expect(store.captures, isEmpty);
     expect(store.pending, isEmpty);
     store.commit();
     expect(store.pending, isEmpty);

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../screens/capture_screen.dart';
 import '../ui/kit.dart';
 import 'app_store.dart';
 
@@ -79,6 +80,13 @@ Future<void> showCaptureDialog(BuildContext context, AppStore store) async {
         ],
       ),
       actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialog);
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const CaptureScreen()));
+          },
+          child: const Text('최근 수집'),
+        ),
         TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('취소')),
         FilledButton(onPressed: () => submit(dialog), child: const Text('넣기')),
       ],

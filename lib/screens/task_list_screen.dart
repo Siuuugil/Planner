@@ -57,6 +57,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     return AppScaffold(
       title: '할 일',
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-task_list',
         tooltip: '할 일 추가 (마감일·메모)',
         onPressed: () => showTaskEditor(context, _filter ?? TaskCategory.work),
         child: const Icon(Icons.add, size: 28),

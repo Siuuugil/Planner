@@ -4,7 +4,10 @@
 create table public.items (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   id text not null,
-  kind text not null check (kind in ('schedule', 'game', 'task', 'maple', 'mark', 'ai')),
+  -- event: PC 마을이 폰 푸시·디스코드 DM으로 보내는 알림
+  -- inbox: 📥 수집 (플래너 공유·빠른 입력 → PC 마을이 처리 후 deleted 표시)
+  kind text not null constraint items_kind_check
+    check (kind in ('schedule', 'game', 'task', 'maple', 'mark', 'ai', 'event', 'inbox')),
   data jsonb,
   deleted boolean not null default false,
   updated_at timestamptz not null,

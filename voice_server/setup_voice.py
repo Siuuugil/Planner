@@ -6,7 +6,7 @@
 - voice_server/refs/*.wav 와 voice.json 작성
 
 GPT-SoVITS 폴더에서:
-  runtime\\python.exe setup_voice.py [모델이름=her] [voice_server 폴더=C:\\MyPlannerVoice\\voice_server]
+  runtime\\python.exe setup_voice.py [모델이름=her] [voice_server 폴더=C:\\MyPlannerVoice\\voice_server] [받아쓰기 파일=output\\asr_opt\\slicer_opt.list]
 """
 
 import glob
@@ -89,7 +89,9 @@ def main():
     if not gpt or not sovits:
         raise SystemExit(f"'{name}' 이름의 학습 결과를 못 찾았어요. 1B 미세 조정 훈련(SoVITS·GPT)이 끝났는지 확인해 주세요.")
 
-    lst = os.path.join(gsv, "output", "asr_opt", "slicer_opt.list")
+    lst = sys.argv[3] if len(sys.argv) > 3 else os.path.join(gsv, "output", "asr_opt", "slicer_opt.list")
+    if not os.path.isabs(lst):
+        lst = os.path.join(gsv, lst)
     rows = read_list(lst)
     print(f"[2/3] 참고 녹음 고르기 (받아쓰기 {len(rows)}개 중 3~10초)")
     clips = []

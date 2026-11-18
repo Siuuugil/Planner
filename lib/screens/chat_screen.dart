@@ -159,7 +159,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               '"보고서 끝냈어", "이번 주 보스 뭐 남았어?"'
                               '${onPc ? '\n\n한국어 음성 입력: 입력칸을 누르고 Win + H' : '\n\n🎤 를 누르고 말하면 돼요. 답은 PC 앱(같은 계정으로 켜져 있어야 함)이 해요.'}',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Ui.subtext, height: 1.6),
+                      style: TextStyle(color: Ui.subtext, height: 1.6),
                     ),
                   ),
                 for (final c in chats) ...[
@@ -169,7 +169,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   else if (c.status == 'error')
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Text('답을 못 받았어요: ${c.body}', style: const TextStyle(color: Ui.red)),
+                      child: Text('답을 못 받았어요: ${c.body}', style: TextStyle(color: Ui.red)),
                     )
                   else
                     _Bubble(
@@ -185,7 +185,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   _Bubble(text: _pending!, mine: true),
                   const _Waiting('생각하는 중…'),
                 ],
-                if (_error != null) Text(_error!, style: const TextStyle(color: Ui.red)),
+                if (_error != null) Text(_error!, style: TextStyle(color: Ui.red)),
               ],
             ),
           ),
@@ -196,7 +196,7 @@ class _ChatScreenState extends State<ChatScreen> {
               top: false,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Ui.card,
                   border: Border(top: BorderSide(color: Ui.line)),
                 ),
@@ -247,7 +247,7 @@ class _Waiting extends StatelessWidget {
         child: Row(children: [
           const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Ui.subtext)),
+          Text(label, style: TextStyle(color: Ui.subtext)),
         ]),
       );
 }
@@ -268,7 +268,7 @@ class _VoiceBar extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-      color: const Color(0xFFFBF7F1),
+      color: Ui.soft,
       child: Row(children: [
         Icon(icon, size: 18, color: color),
         const SizedBox(width: 8),
@@ -306,13 +306,13 @@ class _Bubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(mine ? text : plainText(text), style: TextStyle(color: mine ? Colors.white : Ui.text, height: 1.45)),
+              Text(mine ? text : plainText(text), style: TextStyle(color: mine ? Ui.onText : Ui.text, height: 1.45)),
               if (time != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text(DateFormat('M/d HH:mm').format(time!),
-                        style: const TextStyle(fontSize: 11, color: Ui.subtext)),
+                        style: TextStyle(fontSize: 11, color: Ui.subtext)),
                     if (onSpeak != null)
                       InkWell(
                         onTap: onSpeak,
@@ -345,7 +345,7 @@ class AiActionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6, right: 40),
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBF7F1),
+        color: Ui.soft,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Ui.line),
       ),
@@ -357,7 +357,7 @@ class AiActionCard extends StatelessWidget {
           if (applied != null)
             Padding(
               padding: const EdgeInsets.only(right: 6),
-              child: Text(applied, style: const TextStyle(fontSize: 12, color: Ui.subtext)),
+              child: Text(applied, style: TextStyle(fontSize: 12, color: Ui.subtext)),
             )
           else
             TextButton(

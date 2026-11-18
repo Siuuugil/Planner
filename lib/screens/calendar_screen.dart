@@ -34,8 +34,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final schedules = all.where((s) => s.gameId == null).toList();
     final gameSchedules = store.hideGames ? <Schedule>[] : all.where((s) => s.gameId != null).toList();
     final tasks = store.tasks.where((t) => t.due != null && isSameDay(t.due, _selected)).toList();
-    const day = TextStyle(fontSize: 14, color: Ui.text);
-    const weekend = TextStyle(fontSize: 14, color: Ui.red);
+    final day = TextStyle(fontSize: 14, color: Ui.text);
+    final weekend = TextStyle(fontSize: 14, color: Ui.red);
 
     return AppScaffold(
       title: '캘린더',
@@ -98,22 +98,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   border: Border.all(color: Ui.line, width: 1.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                leftChevronIcon: const Icon(Icons.chevron_left, color: Ui.text),
-                rightChevronIcon: const Icon(Icons.chevron_right, color: Ui.text),
+                leftChevronIcon: Icon(Icons.chevron_left, color: Ui.text),
+                rightChevronIcon: Icon(Icons.chevron_right, color: Ui.text),
               ),
-              daysOfWeekStyle: const DaysOfWeekStyle(
+              daysOfWeekStyle: DaysOfWeekStyle(
                 weekdayStyle: TextStyle(fontSize: 12, color: Ui.subtext),
                 weekendStyle: TextStyle(fontSize: 12, color: Ui.red),
               ),
               calendarStyle: CalendarStyle(
                 defaultTextStyle: day,
                 weekendTextStyle: weekend,
-                outsideTextStyle: const TextStyle(fontSize: 14, color: Ui.ring),
-                todayDecoration: const BoxDecoration(color: Ui.accentSoft, shape: BoxShape.circle),
-                todayTextStyle: const TextStyle(fontSize: 14, color: Ui.text, fontWeight: FontWeight.w700),
-                selectedDecoration: const BoxDecoration(color: Ui.text, shape: BoxShape.circle),
-                selectedTextStyle: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w700),
-                markerDecoration: const BoxDecoration(color: Ui.accent, shape: BoxShape.circle),
+                outsideTextStyle: TextStyle(fontSize: 14, color: Ui.ring),
+                todayDecoration: BoxDecoration(color: Ui.accentSoft, shape: BoxShape.circle),
+                todayTextStyle: TextStyle(fontSize: 14, color: Ui.text, fontWeight: FontWeight.w700),
+                selectedDecoration: BoxDecoration(color: Ui.text, shape: BoxShape.circle),
+                selectedTextStyle: TextStyle(fontSize: 14, color: Ui.onText, fontWeight: FontWeight.w700),
+                markerDecoration: BoxDecoration(color: Ui.accent, shape: BoxShape.circle),
                 markerSize: 5,
                 markersMaxCount: 3,
               ),

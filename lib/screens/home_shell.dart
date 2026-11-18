@@ -59,7 +59,7 @@ class _HomeShellState extends State<HomeShell> {
                   ),
               ],
             ),
-            const VerticalDivider(width: 1, color: Ui.line),
+            VerticalDivider(width: 1, color: Ui.line),
             Expanded(child: body),
           ],
         ),
@@ -69,7 +69,7 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       body: body,
       bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Ui.line))),
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: Ui.line))),
         child: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: _go,

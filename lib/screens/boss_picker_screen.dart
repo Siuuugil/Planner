@@ -219,7 +219,7 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
                   child: Text('난이도를 누르면 선택, 한 번 더 누르면 해제 · 오른쪽에서 파티 인원',
                       style: TextStyle(fontSize: 12.5, color: Ui.subtext)),
@@ -295,7 +295,7 @@ class _BossPickerScreenState extends State<BossPickerScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('에오스 결정석 1메소를 메포로 바꿔 본캐 월드로 넘기면 실제로 받는 메소 비율이에요.',
+            Text('에오스 결정석 1메소를 메포로 바꿔 본캐 월드로 넘기면 실제로 받는 메소 비율이에요.',
                 style: TextStyle(color: Ui.subtext, height: 1.45)),
             const SizedBox(height: 10),
             TextField(
@@ -370,7 +370,7 @@ class _BossRow extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
       decoration: BoxDecoration(
-        color: on ? const Color(0xFFFBF7F1) : Colors.transparent,
+        color: on ? Ui.soft : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -423,7 +423,7 @@ class _BossRow extends StatelessWidget {
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text('$party인', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  const Icon(Icons.expand_more, size: 18, color: Ui.subtext),
+                  Icon(Icons.expand_more, size: 18, color: Ui.subtext),
                 ]),
               ),
             ),
@@ -509,7 +509,7 @@ class _Pill extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : Ui.text,
+                    color: selected ? Ui.onText : Ui.text,
                   )),
             ),
           ),

@@ -78,7 +78,7 @@ class CharacterRow extends StatelessWidget {
                             style: const TextStyle(fontSize: 18)),
                       ),
                       const SizedBox(width: 6),
-                      Text('Lv.${c.level}', style: const TextStyle(color: Ui.accent, fontSize: 16)),
+                      Text('Lv.${c.level}', style: TextStyle(color: Ui.accent, fontSize: 16)),
                       if (busy) ...[
                         const SizedBox(width: 8),
                         const SizedBox(
@@ -87,7 +87,7 @@ class CharacterRow extends StatelessWidget {
                     ],
                   ),
                   Text('${c.world} · ${c.job}',
-                      style: const TextStyle(color: Ui.subtext, fontSize: 13)),
+                      style: TextStyle(color: Ui.subtext, fontSize: 13)),
                   const SizedBox(height: 4),
                   GaugeBar(value: c.expRate / 100, height: 14, label: 'EXP ${c.expRate.toStringAsFixed(3)}%'),
                   if (c.combatPower != null) ...[

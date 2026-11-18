@@ -281,7 +281,7 @@ class _PasswordRecoveryGateState extends State<PasswordRecoveryGate> {
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(error!, style: const TextStyle(color: Ui.red)),
+                  child: Text(error!, style: TextStyle(color: Ui.red)),
                 ),
             ],
           ),

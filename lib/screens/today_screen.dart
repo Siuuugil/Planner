@@ -112,13 +112,13 @@ class TodayScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(DateFormat('M월 d일 EEEE', 'ko_KR').format(now),
-                                style: const TextStyle(fontSize: 14, color: Ui.subtext, fontWeight: FontWeight.w500)),
+                                style: TextStyle(fontSize: 14, color: Ui.subtext, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 4),
                             Text.rich(
                               TextSpan(children: [
                                 TextSpan(text: openCount == 0 && total > 0 ? '오늘 할 일 끝! ' : '오늘 할 일 '),
                                 if (openCount > 0)
-                                  TextSpan(text: '$openCount개', style: const TextStyle(color: Ui.accent)),
+                                  TextSpan(text: '$openCount개', style: TextStyle(color: Ui.accent)),
                               ]),
                               style: Ui.title(26),
                             ),
@@ -135,7 +135,7 @@ class TodayScreen extends StatelessWidget {
                       ),
                       IconButton(
                         tooltip: 'AI 비서',
-                        icon: const Icon(Icons.auto_awesome, color: Ui.accent),
+                        icon: Icon(Icons.auto_awesome, color: Ui.accent),
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const AiScreen()),
@@ -292,17 +292,17 @@ class _Row extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.trailing,
-    this.leadColor = Ui.text,
-    this.subtitleColor = Ui.subtext,
+    this.leadColor,
+    this.subtitleColor,
     this.strike = false,
     this.onTap,
   });
 
   final String lead;
-  final Color leadColor;
+  final Color? leadColor;
   final String title;
   final String subtitle;
-  final Color subtitleColor;
+  final Color? subtitleColor;
   final Widget trailing;
   final bool strike;
   final VoidCallback? onTap;
@@ -316,7 +316,7 @@ class _Row extends StatelessWidget {
             children: [
               SizedBox(
                 width: 48,
-                child: Text(lead, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: leadColor)),
+                child: Text(lead, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: leadColor ?? Ui.text)),
               ),
               Expanded(
                 child: Column(
@@ -335,7 +335,7 @@ class _Row extends StatelessWidget {
                     Text(subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: subtitleColor)),
+                        style: TextStyle(fontSize: 12, color: subtitleColor ?? Ui.subtext)),
                   ],
                 ),
               ),
@@ -390,7 +390,7 @@ class _TaskRow extends StatelessWidget {
       subtitle: [
         t.category.label,
         if (overdue) '${DateFormat('M/d').format(t.due!)}까지',
-        if (t.repeat != null) '🔁',
+        if (t.repeat != null) '반복',
         if (t.steps.isNotEmpty) '단계 ${t.stepsDone}/${t.steps.length}',
         if (t.memo.isNotEmpty) t.memo,
       ].join(' · '),
@@ -429,7 +429,7 @@ class _ChoreGroupRow extends StatelessWidget {
         width: 44,
         child: Center(
           child: Text('${chores.length - left.length}/${chores.length}',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext)),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext)),
         ),
       ),
     );
@@ -472,7 +472,7 @@ class _ChoreSheet extends StatelessWidget {
               title: Text(
                 c.title,
                 style: g.isChoreDone(c, now)
-                    ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
+                    ? TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
                     : null,
               ),
               trailing: QuestMark(done: g.isChoreDone(c, now), onTap: () => store.toggleChore(g, c)),

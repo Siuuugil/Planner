@@ -47,7 +47,7 @@ class TaskTile extends StatelessWidget {
       title: Text(
         task.title,
         style: task.done
-            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
+            ? TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
             : null,
       ),
       subtitle: subtitle.isEmpty
@@ -194,7 +194,7 @@ class _TaskEditorState extends State<_TaskEditor> {
                 }),
               ),
               if (_repeat != null)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(bottom: 6),
                   child: Text('끝내면 마감일이 다음 회차로 넘어가요', style: TextStyle(fontSize: 12.5, color: Ui.subtext)),
                 ),
@@ -229,7 +229,7 @@ class _TaskEditorState extends State<_TaskEditor> {
                         Expanded(
                           child: Text(_steps[i].title,
                               style: _steps[i].done
-                                  ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
+                                  ? TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
                                   : null),
                         ),
                         IconButton(
@@ -238,7 +238,7 @@ class _TaskEditorState extends State<_TaskEditor> {
                           icon: const Icon(Icons.close, size: 18),
                           onPressed: () => setState(() => _steps.removeAt(i)),
                         ),
-                        ReorderableDragStartListener(index: i, child: const Icon(Icons.drag_handle, size: 20, color: Ui.subtext)),
+                        ReorderableDragStartListener(index: i, child: Icon(Icons.drag_handle, size: 20, color: Ui.subtext)),
                       ],
                     ),
                 ],

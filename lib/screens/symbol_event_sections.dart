@@ -33,7 +33,7 @@ class SymbolSection extends StatelessWidget {
                   '${maple.autoSymbolChore ? ' · 일일 퀘스트는 숙제에 자동으로 들어가요' : ''}',
       trailing: IconButton(
         tooltip: '하루에 모으는 개수',
-        icon: const Icon(Icons.tune, size: 20, color: Ui.subtext),
+        icon: Icon(Icons.tune, size: 20, color: Ui.subtext),
         onPressed: () => _editGains(context, maple),
       ),
       child: Column(
@@ -164,12 +164,12 @@ class _EventSectionState extends State<EventSection> {
           tooltip: '새로고침',
           icon: _loading
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.refresh, size: 20, color: Ui.subtext),
+              : Icon(Icons.refresh, size: 20, color: Ui.subtext),
           onPressed: _loading ? null : () => _load(m, force: true),
         ),
       ]),
       child: _error != null
-          ? Padding(padding: const EdgeInsets.all(14), child: Text(_error!, style: const TextStyle(color: Ui.red)))
+          ? Padding(padding: const EdgeInsets.all(14), child: Text(_error!, style: TextStyle(color: Ui.red)))
           : list.isEmpty
               ? EmptyHint(_loading ? '불러오는 중…' : '진행 중인 이벤트가 없어요')
               : Column(
@@ -181,7 +181,7 @@ class _EventSectionState extends State<EventSection> {
                         subtitle: Text(e.end == null
                             ? ''
                             : '${DateFormat('M/d (E)', 'ko_KR').format(e.end!)} 끝 · ${_dday(e.end!, now)}'),
-                        trailing: const Icon(Icons.open_in_new, size: 18, color: Ui.subtext),
+                        trailing: Icon(Icons.open_in_new, size: 18, color: Ui.subtext),
                         onTap: e.url.isEmpty ? null : () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
                       ),
                   ],

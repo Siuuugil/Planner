@@ -172,7 +172,7 @@ class _ActionRow extends StatelessWidget {
                           Text(sub,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12, color: Ui.subtext)),
+                              style: TextStyle(fontSize: 12, color: Ui.subtext)),
                         ],
                       ),
                     ),
@@ -284,7 +284,7 @@ class _MonthlyPanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
               child: Text(
                 '지난 달: ${past.take(4).map((e) => '${int.parse(e.key.substring(6))}월 ${koreanNumber(e.value)}').join(' · ')}',
-                style: const TextStyle(fontSize: 12.5, color: Ui.subtext),
+                style: TextStyle(fontSize: 12.5, color: Ui.subtext),
               ),
             ),
         ],
@@ -355,7 +355,7 @@ class _HistoryPanel extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             i % 3 == 2 || i == weeks.length - 1 ? DateFormat('M/d').format(weeks[i]) : '',
-                            style: const TextStyle(fontSize: 10, color: Ui.subtext),
+                            style: TextStyle(fontSize: 10, color: Ui.subtext),
                           ),
                         ],
                       ),
@@ -388,7 +388,7 @@ class _HistoryPanel extends StatelessWidget {
           border: Border.all(color: Ui.line, width: 1.5),
         ),
         child: Text.rich(TextSpan(children: [
-          TextSpan(text: '$k ', style: const TextStyle(color: Ui.subtext, fontSize: 13)),
+          TextSpan(text: '$k ', style: TextStyle(color: Ui.subtext, fontSize: 13)),
           TextSpan(text: v, style: const TextStyle(fontSize: 15)),
         ])),
       );
@@ -465,7 +465,7 @@ class _GoalPanel extends StatelessWidget {
                 decoration: const InputDecoration(labelText: '모을 금액 (억 메소)', suffixText: '억'),
               ),
               const SizedBox(height: 6),
-              const Text('이번 주부터 들어오는 결정석 수익이 자동으로 쌓여요',
+              Text('이번 주부터 들어오는 결정석 수익이 자동으로 쌓여요',
                   style: TextStyle(color: Ui.subtext, fontSize: 13)),
             ],
           ),
@@ -530,7 +530,7 @@ class _PricePanelState extends State<_PricePanel> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(14, 8, 14, 4),
                   child: Text(
                     '기본값은 $bossPriceTableDate 기준이에요. 패치로 바뀌면 보스를 눌러 고치세요.',

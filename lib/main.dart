@@ -19,6 +19,7 @@ import 'notify/notify_service.dart';
 import 'screens/account_screen.dart';
 import 'screens/home_shell.dart';
 import 'ui/kit.dart';
+import 'ui/theme_controller.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,16 +80,17 @@ Future<void> main(List<String> args) async {
   );
   // PC 앱: 아침 브리핑·월요일 리포트 자동 실행 (설정에서 켬)
   final autopilot = ai.supported ? (await Autopilot.open(store, ai)..start()) : null;
+  final theme = await ThemeController.open();
   final voice = await VoiceService.open()
     ..resolveAudio = (path) async =>
         supabase.auth.currentUser == null ? null : supabase.storage.from(bucket).createSignedUrl(path, 600);
   runApp(MyPlannerApp(
-      store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice, desktop: desktop, autopilot: autopilot));
+      store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice, desktop: desktop, autopilot: autopilot, theme: theme));
   maple.refreshStale();
 }
 
 class MyPlannerApp extends StatelessWidget {
-  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice, this.myVoice, this.desktop, this.autopilot});
+  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice, this.myVoice, this.desktop, this.autopilot, this.theme});
 
   final AppStore store;
   final SyncService? sync;
@@ -99,12 +101,15 @@ class MyPlannerApp extends StatelessWidget {
   final MyVoice? myVoice;
   final DesktopShell? desktop;
   final Autopilot? autopilot;
+  final ThemeController? theme;
 
   @override
   Widget build(BuildContext context) {
-    final app = StoreScope(
-      store: store,
-      child: MaterialApp(
+    // 테마가 바뀌면 토큰(Ui.*)을 바꾸고 앱 전체를 새로 그린다 (key 로 다시 만들기)
+    Widget materialApp() {
+      Ui.dark = theme?.isDark ?? false;
+      return MaterialApp(
+        key: ValueKey(Ui.dark),
         title: '마이플래너',
         scaffoldMessengerKey: captureMessenger,
         debugShowCheckedModeBanner: false,
@@ -117,7 +122,12 @@ class MyPlannerApp extends StatelessWidget {
         ],
         theme: appTheme(),
         home: const PasswordRecoveryGate(child: HomeShell()),
-      ),
+      );
+    }
+
+    final app = StoreScope(
+      store: store,
+      child: theme == null ? materialApp() : ListenableBuilder(listenable: theme!, builder: (_, _) => materialApp()),
     );
     Widget root = app;
     if (notify != null) root = NotifyScope(notify: notify!, child: root);
@@ -127,6 +137,7 @@ class MyPlannerApp extends StatelessWidget {
     if (voice != null) root = VoiceScope(voice: voice!, myVoice: myVoice, child: root);
     if (sync != null) root = SyncScope(sync: sync!, child: root);
     if (desktop != null) root = DesktopScope(shell: desktop!, child: root);
+    if (theme != null) root = ThemeScope(theme: theme!, child: root);
     return root;
   }
 }

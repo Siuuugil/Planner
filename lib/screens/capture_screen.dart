@@ -67,7 +67,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
             ),
           ),
           if (signedOut)
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text('로그인하지 않으면 이 기기에만 있고 PC 마을로 전달되지 않아요. (설정 → 계정)',
                   style: TextStyle(fontSize: 13, color: Ui.red)),
@@ -120,7 +120,7 @@ class _CaptureRow extends StatelessWidget {
                   TextSpan(text: '$when$from · '),
                   TextSpan(text: label, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
                 ]),
-                style: const TextStyle(fontSize: 12, color: Ui.subtext),
+                style: TextStyle(fontSize: 12, color: Ui.subtext),
               ),
             ],
           ),

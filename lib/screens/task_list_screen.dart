@@ -93,7 +93,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
               decoration: InputDecoration(
                 hintText: '${(_filter ?? TaskCategory.work).label} 할 일 빠르게 추가',
                 fillColor: Ui.card,
-                prefixIcon: const Icon(Icons.add, color: Ui.subtext),
+                prefixIcon: Icon(Icons.add, color: Ui.subtext),
                 suffixIcon: IconButton(
                   tooltip: '추가',
                   icon: const Icon(Icons.arrow_upward_rounded),
@@ -168,7 +168,7 @@ class _FilterPill extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : Ui.text,
+                      color: selected ? Ui.onText : Ui.text,
                     ),
                   ),
                 ),

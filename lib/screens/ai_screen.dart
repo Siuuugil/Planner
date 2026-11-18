@@ -45,7 +45,7 @@ class AiScreen extends StatelessWidget {
                 child: Row(children: [
                   const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
                   const SizedBox(width: 10),
-                  Text('AI가 "${ai.running}" 하는 중… (보통 10~30초)', style: const TextStyle(color: Ui.subtext)),
+                  Text('AI가 "${ai.running}" 하는 중… (보통 10~30초)', style: TextStyle(color: Ui.subtext)),
                 ]),
               ),
             _QuickAddSection(ai),
@@ -117,11 +117,11 @@ class _QuickAddSectionState extends State<_QuickAddSection> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(_error!, style: const TextStyle(color: Ui.red)),
+              child: Text(_error!, style: TextStyle(color: Ui.red)),
             ),
           if (_items != null) ...[
             const SizedBox(height: 12),
-            if (_items!.isEmpty) const Text('추가할 항목을 찾지 못했어요.', style: TextStyle(color: Ui.subtext)),
+            if (_items!.isEmpty) Text('추가할 항목을 찾지 못했어요.', style: TextStyle(color: Ui.subtext)),
             for (final it in _items!)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -195,13 +195,13 @@ class _PlanSectionState extends State<_PlanSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_error != null) Text(_error!, style: const TextStyle(color: Ui.red)),
+          if (_error != null) Text(_error!, style: TextStyle(color: Ui.red)),
           if (plan == null)
             Text(
               widget.ai == null
                   ? '오늘 계획이 아직 없어요. PC 앱에서 만들면 여기에 보여요.'
                   : '오늘 일정·할 일·숙제를 보고 지금부터 시간표를 짜 줘요${store.hideGames ? ' (회사 모드라 게임은 빼고)' : ''}.',
-              style: const TextStyle(color: Ui.subtext),
+              style: TextStyle(color: Ui.subtext),
             )
           else
             PlanView(plan),
@@ -217,7 +217,7 @@ class PlanView extends StatelessWidget {
 
   final AiNote plan;
 
-  static const colors = {'work': Ui.blue, 'personal': Ui.accent, 'game': Ui.purple, 'break': Ui.green};
+  static Map<String, Color> get colors => {'work': Ui.blue, 'personal': Ui.accent, 'game': Ui.purple, 'break': Ui.green};
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +238,7 @@ class PlanView extends StatelessWidget {
                 SizedBox(
                   width: 92,
                   child: Text('${b.start}–${b.end}',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext)),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext)),
                 ),
                 Container(
                   width: 4,
@@ -255,7 +255,7 @@ class PlanView extends StatelessWidget {
                     children: [
                       Text(b.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                       if (b.note.isNotEmpty)
-                        Text(b.note, style: const TextStyle(fontSize: 12.5, color: Ui.subtext)),
+                        Text(b.note, style: TextStyle(fontSize: 12.5, color: Ui.subtext)),
                     ],
                   ),
                 ),
@@ -267,7 +267,7 @@ class PlanView extends StatelessWidget {
           for (final t in plan.bullets)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text('· $t', style: const TextStyle(fontSize: 13, color: Ui.subtext)),
+              child: Text('· $t', style: TextStyle(fontSize: 13, color: Ui.subtext)),
             ),
         ],
       ],
@@ -294,7 +294,7 @@ class NoteCard extends StatelessWidget {
           if (showTitle)
             Text(note.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           Text(DateFormat('M/d HH:mm').format(note.createdAt),
-              style: const TextStyle(fontSize: 11.5, color: Ui.subtext)),
+              style: TextStyle(fontSize: 11.5, color: Ui.subtext)),
           const SizedBox(height: 6),
           SelectableText(plainText(note.body), style: const TextStyle(height: 1.5)),
           if (note.bullets.isNotEmpty) ...[
@@ -349,7 +349,7 @@ class _ReportSectionState extends State<_ReportSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_error != null) Text(_error!, style: const TextStyle(color: Ui.red)),
+          if (_error != null) Text(_error!, style: TextStyle(color: Ui.red)),
           if (report == null)
             Text('지난 7일 동안 한 일${store.hideGames ? '' : '과 결정석·성장'}을 돌아보고 다음 주 할 일을 정리해 줘요.',
                 style: TextStyle(color: Ui.subtext))
@@ -440,12 +440,12 @@ class _WorkCoachSectionState extends State<_WorkCoachSection> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(_error!, style: const TextStyle(color: Ui.red)),
+                child: Text(_error!, style: TextStyle(color: Ui.red)),
               ),
             const SizedBox(height: 12),
           ],
           if (answers.isEmpty)
-            const Text('할 일과 일정을 보고 무엇부터 할지, 어떻게 나눌지 같이 정해 줘요. 할 일 추가는 확인 후 적용돼요.',
+            Text('할 일과 일정을 보고 무엇부터 할지, 어떻게 나눌지 같이 정해 줘요. 할 일 추가는 확인 후 적용돼요.',
                 style: TextStyle(color: Ui.subtext))
           else
             for (final a in answers)
@@ -537,12 +537,12 @@ class _CoachSectionState extends State<_CoachSection> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(_error!, style: const TextStyle(color: Ui.red)),
+                child: Text(_error!, style: TextStyle(color: Ui.red)),
               ),
             const SizedBox(height: 12),
           ],
           if (answers.isEmpty)
-            const Text('레벨업 예상일, 결정석, 메소 목표 같은 걸 앱이 계산한 숫자로 답해 줘요.',
+            Text('레벨업 예상일, 결정석, 메소 목표 같은 걸 앱이 계산한 숫자로 답해 줘요.',
                 style: TextStyle(color: Ui.subtext))
           else
             for (final a in answers)

@@ -9,7 +9,7 @@ class GrowthChart extends StatelessWidget {
     required this.dates,
     required this.values,
     required this.format,
-    this.color = Ui.accent,
+    this.color,
     this.height = 180,
   });
 
@@ -17,7 +17,7 @@ class GrowthChart extends StatelessWidget {
   final List<String> dates;
   final List<double> values;
   final String Function(double) format;
-  final Color color;
+  final Color? color;
   final double height;
 
   @override
@@ -29,7 +29,7 @@ class GrowthChart extends StatelessWidget {
           child: Text(
             values.isEmpty ? '기록이 없어요' : '기록이 하루치뿐이에요. 갱신하거나 지난 기록을 불러오세요.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Ui.subtext),
+            style: TextStyle(color: Ui.subtext),
           ),
         ),
       );
@@ -37,7 +37,7 @@ class GrowthChart extends StatelessWidget {
     return SizedBox(
       height: height,
       child: CustomPaint(
-        painter: _ChartPainter(dates, values, format, color),
+        painter: _ChartPainter(dates, values, format, color ?? Ui.accent),
         size: Size.infinite,
       ),
     );
@@ -132,7 +132,7 @@ class _ChartPainter extends CustomPainter {
     if (values.length <= 31) {
       for (var i = 0; i < values.length; i++) {
         canvas.drawCircle(pt(i), 4, Paint()..color = Ui.text);
-        canvas.drawCircle(pt(i), 2.6, Paint()..color = Colors.white);
+        canvas.drawCircle(pt(i), 2.6, Paint()..color = Ui.card);
       }
     }
 

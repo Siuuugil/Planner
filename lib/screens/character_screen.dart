@@ -92,7 +92,7 @@ class _InfoPanel extends StatelessWidget {
       title: '캐릭터 정보',
       accent: Ui.green,
       trailing: busy
-          ? const Padding(
+          ? Padding(
               padding: EdgeInsets.only(right: 8),
               child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Ui.subtext)),
             )
@@ -103,7 +103,7 @@ class _InfoPanel extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [Ui.accentSoft, Ui.bg],
@@ -119,9 +119,9 @@ class _InfoPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(c.name, style: const TextStyle(fontSize: 22)),
-                Text('Lv.${c.level}  ${c.job}', style: const TextStyle(fontSize: 16, color: Ui.accent)),
+                Text('Lv.${c.level}  ${c.job}', style: TextStyle(fontSize: 16, color: Ui.accent)),
                 Text([c.world, if (c.guild != null && c.guild!.isNotEmpty) '길드 ${c.guild}'].join(' · '),
-                    style: const TextStyle(color: Ui.subtext, fontSize: 13)),
+                    style: TextStyle(color: Ui.subtext, fontSize: 13)),
                 const SizedBox(height: 8),
                 GaugeBar(value: c.expRate / 100, label: 'EXP ${c.expRate.toStringAsFixed(3)}%'),
                 const SizedBox(height: 6),
@@ -129,7 +129,7 @@ class _InfoPanel extends StatelessWidget {
                   Text('⚔️ 전투력 ${koreanNumber(c.combatPower!)}', style: const TextStyle(fontSize: 16)),
                 if (c.updatedAt != null)
                   Text('갱신 ${DateFormat('M/d HH:mm').format(c.updatedAt!)}',
-                      style: const TextStyle(color: Ui.subtext, fontSize: 12)),
+                      style: TextStyle(color: Ui.subtext, fontSize: 12)),
               ],
             ),
           ),
@@ -402,7 +402,7 @@ class _StatPanelState extends State<_StatPanel> {
                       border: Border.all(color: Ui.line, width: 1.5),
                     ),
                     child: Text.rich(TextSpan(children: [
-                      TextSpan(text: '$k ', style: const TextStyle(color: Ui.subtext, fontSize: 13)),
+                      TextSpan(text: '$k ', style: TextStyle(color: Ui.subtext, fontSize: 13)),
                       TextSpan(
                         text: k == '전투력' ? koreanNumber(num.tryParse(v) ?? 0) : _fmt(v),
                         style: const TextStyle(fontSize: 15),
@@ -442,7 +442,7 @@ class _EquipPanel extends StatelessWidget {
           : IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: '다시 불러오기',
-              icon: const Icon(Icons.refresh, color: Ui.subtext),
+              icon: Icon(Icons.refresh, color: Ui.subtext),
               onPressed: () => run(() => maple.equipment(c, force: true)),
             ),
       child: eq == null
@@ -520,7 +520,7 @@ class _ItemTile extends StatelessWidget {
           for (final l in add) Text('  $l', style: const TextStyle(fontSize: 13)),
         ],
         if (pot.isEmpty && add.isEmpty)
-          const Text('잠재능력 없음', style: TextStyle(color: Ui.subtext, fontSize: 13)),
+          Text('잠재능력 없음', style: TextStyle(color: Ui.subtext, fontSize: 13)),
       ],
     );
   }

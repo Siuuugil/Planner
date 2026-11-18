@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 
-/// 디자인 토큰: 밝은 바탕 + 흰 카드, 주황 포인트 (A안)
+/// 디자인 토큰: 밝은 바탕 + 흰 카드, 주황 포인트 (A안). [dark]면 어두운 판.
+/// 값은 테마가 바뀔 때 앱 전체를 다시 그려서 반영한다 (`MyPlannerApp`).
 abstract final class Ui {
-  static const bg = Color(0xFFF6F5F2);
-  static const card = Color(0xFFFFFFFF);
-  static const field = Color(0xFFF3F1EC);
-  static const text = Color(0xFF1C1B19);
-  static const subtext = Color(0xFF6B6862);
-  static const line = Color(0xFFE7E4DE);
-  static const ring = Color(0xFFC9C5BD);
-  static const accent = Color(0xFFEA7317);
-  static const accentSoft = Color(0xFFFDEBDC);
-  static const maple = Color(0xFFB45309); // 메이플 관련 글자 (흰 바탕 대비 4.5:1 이상)
-  static const blue = Color(0xFF2563EB);
-  static const red = Color(0xFFB91C1C);
-  static const green = Color(0xFF15803D);
-  static const purple = Color(0xFF7C3AED);
+  static bool dark = false;
+
+  static Color _p(int light, int dark_) => Color(dark ? dark_ : light);
+
+  static Color get bg => _p(0xFFF6F5F2, 0xFF161513);
+  static Color get card => _p(0xFFFFFFFF, 0xFF211F1C);
+  static Color get field => _p(0xFFF3F1EC, 0xFF2B2925);
+  static Color get text => _p(0xFF1C1B19, 0xFFF2F0EB);
+
+  /// [text] 색 바탕 위의 글자 (밝은 판: 흰색, 어두운 판: 거의 검정)
+  static Color get onText => _p(0xFFFFFFFF, 0xFF161513);
+  static Color get subtext => _p(0xFF6B6862, 0xFFA8A49C);
+  static Color get line => _p(0xFFE7E4DE, 0xFF36332F);
+  static Color get ring => _p(0xFFC9C5BD, 0xFF57534D);
+  static Color get accent => _p(0xFFEA7317, 0xFFF0883A);
+  static Color get accentSoft => _p(0xFFFDEBDC, 0xFF3D2A1A);
+
+  /// 은은한 강조 바탕 (제안 카드·선택된 줄)
+  static Color get soft => _p(0xFFFBF7F1, 0xFF2A2621);
+  static Color get maple => _p(0xFFB45309, 0xFFF5A524); // 메이플 관련 글자 (바탕 대비 4.5:1 이상)
+  static Color get blue => _p(0xFF2563EB, 0xFF6EA8FE);
+  static Color get red => _p(0xFFB91C1C, 0xFFF87171);
+  static Color get green => _p(0xFF15803D, 0xFF4ADE80);
+  static Color get purple => _p(0xFF7C3AED, 0xFFB197FC);
 
   static TextStyle title([double size = 22]) => TextStyle(
         fontSize: size,
@@ -28,8 +39,9 @@ abstract final class Ui {
 ThemeData appTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: Ui.accent,
+    brightness: Ui.dark ? Brightness.dark : Brightness.light,
     primary: Ui.text,
-    onPrimary: Colors.white,
+    onPrimary: Ui.onText,
     secondary: Ui.accent,
     surface: Ui.card,
     onSurface: Ui.text,
@@ -38,6 +50,7 @@ ThemeData appTheme() {
   final rounded = RoundedRectangleBorder(borderRadius: BorderRadius.circular(20));
   return ThemeData(
     useMaterial3: true,
+    brightness: Ui.dark ? Brightness.dark : Brightness.light,
     colorScheme: scheme,
     scaffoldBackgroundColor: Ui.bg,
     canvasColor: Ui.card,
@@ -58,7 +71,7 @@ ThemeData appTheme() {
       shape: rounded,
       titleTextStyle: Ui.title(20),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
+    bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: Ui.card,
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
@@ -70,18 +83,18 @@ ThemeData appTheme() {
       fillColor: Ui.field,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      labelStyle: const TextStyle(color: Ui.subtext),
+      labelStyle: TextStyle(color: Ui.subtext),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Ui.text, width: 1.5),
+        borderSide: BorderSide(color: Ui.text, width: 1.5),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: Ui.text,
-        foregroundColor: Colors.white,
+        foregroundColor: Ui.onText,
         minimumSize: const Size(0, 48),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -91,7 +104,7 @@ ThemeData appTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: Ui.text,
         minimumSize: const Size(0, 44),
-        side: const BorderSide(color: Ui.line, width: 1.5),
+        side: BorderSide(color: Ui.line, width: 1.5),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
@@ -107,19 +120,19 @@ ThemeData appTheme() {
         backgroundColor: Ui.card,
         foregroundColor: Ui.subtext,
         selectedBackgroundColor: Ui.text,
-        selectedForegroundColor: Colors.white,
-        side: const BorderSide(color: Ui.line),
+        selectedForegroundColor: Ui.onText,
+        side: BorderSide(color: Ui.line),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),
     chipTheme: ChipThemeData(
       backgroundColor: Ui.card,
       selectedColor: Ui.text,
-      side: const BorderSide(color: Ui.line),
-      shape: StadiumBorder(side: const BorderSide(color: Ui.line)),
-      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Ui.text),
-      secondaryLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-      checkmarkColor: Colors.white,
+      side: BorderSide(color: Ui.line),
+      shape: StadiumBorder(side: BorderSide(color: Ui.line)),
+      labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Ui.text),
+      secondaryLabelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Ui.onText),
+      checkmarkColor: Ui.onText,
     ),
     switchTheme: SwitchThemeData(
       thumbColor: const WidgetStatePropertyAll(Colors.white),
@@ -127,13 +140,13 @@ ThemeData appTheme() {
           (s) => s.contains(WidgetState.selected) ? Ui.accent : Ui.ring),
       trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
     ),
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: Ui.text,
-      foregroundColor: Colors.white,
+      foregroundColor: Ui.onText,
       elevation: 4,
       shape: CircleBorder(),
     ),
-    listTileTheme: const ListTileThemeData(
+    listTileTheme: ListTileThemeData(
       textColor: Ui.text,
       iconColor: Ui.subtext,
       contentPadding: EdgeInsets.symmetric(horizontal: 16),
@@ -158,7 +171,7 @@ ThemeData appTheme() {
             color: s.contains(WidgetState.selected) ? Ui.text : Ui.subtext,
           )),
     ),
-    navigationRailTheme: const NavigationRailThemeData(
+    navigationRailTheme: NavigationRailThemeData(
       backgroundColor: Ui.card,
       indicatorColor: Ui.accentSoft,
       selectedIconTheme: IconThemeData(color: Ui.text),
@@ -166,12 +179,12 @@ ThemeData appTheme() {
       selectedLabelTextStyle: TextStyle(fontWeight: FontWeight.w700, color: Ui.text),
       unselectedLabelTextStyle: TextStyle(color: Ui.subtext),
     ),
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       backgroundColor: Ui.text,
       behavior: SnackBarBehavior.floating,
-      contentTextStyle: TextStyle(color: Colors.white),
+      contentTextStyle: TextStyle(color: Ui.onText),
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(color: Ui.accent),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: Ui.accent),
   );
 }
 
@@ -244,8 +257,8 @@ class AppSection extends StatelessWidget {
                         title!,
                         overflow: TextOverflow.ellipsis,
                         style: icon != null
-                            ? const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Ui.text)
-                            : const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext),
+                            ? TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Ui.text)
+                            : TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext),
                       ),
                     ),
                     ?trailing,
@@ -256,7 +269,7 @@ class AppSection extends StatelessWidget {
           if (subtitle != null)
             Padding(
               padding: EdgeInsets.fromLTRB(icon != null ? 42 : 16, 0, 16, 6),
-              child: Text(subtitle!, style: const TextStyle(fontSize: 12.5, color: Ui.subtext, height: 1.4)),
+              child: Text(subtitle!, style: TextStyle(fontSize: 12.5, color: Ui.subtext, height: 1.4)),
             ),
           Padding(padding: padding, child: child),
         ],
@@ -275,7 +288,7 @@ class CountBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(right: 8),
-        child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext)),
+        child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Ui.subtext)),
       );
 }
 
@@ -290,7 +303,7 @@ class AddButton extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
         tooltip: tooltip,
         onPressed: onPressed,
-        icon: const Icon(Icons.add, size: 22, color: Ui.text),
+        icon: Icon(Icons.add, size: 22, color: Ui.text),
       );
 }
 
@@ -329,7 +342,7 @@ class GaugeBar extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            const ColoredBox(color: Ui.line),
+            ColoredBox(color: Ui.line),
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: v,
@@ -346,7 +359,7 @@ class GaugeBar extends StatelessWidget {
       children: [
         bar,
         const SizedBox(height: 4),
-        Text(label!, style: const TextStyle(fontSize: 12, color: Ui.subtext)),
+        Text(label!, style: TextStyle(fontSize: 12, color: Ui.subtext)),
       ],
     );
   }
@@ -382,7 +395,7 @@ class CheckCircle extends StatelessWidget {
                   color: value ? Ui.text : Colors.transparent,
                   border: value ? null : Border.all(color: color ?? Ui.ring, width: 2),
                 ),
-                child: value ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null,
+                child: value ? Icon(Icons.check_rounded, size: 16, color: Ui.onText) : null,
               ),
             ),
           ),
@@ -411,7 +424,7 @@ class EmptyHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-        child: Text(text, style: const TextStyle(color: Ui.subtext, fontSize: 14, height: 1.45)),
+        child: Text(text, style: TextStyle(color: Ui.subtext, fontSize: 14, height: 1.45)),
       );
 }
 
@@ -420,7 +433,7 @@ class ListDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16, color: Ui.line);
+      Divider(height: 1, thickness: 1, indent: 16, endIndent: 16, color: Ui.line);
 }
 
 /// 위젯 목록 사이에 구분선 (A안은 구분선 없이 여백만)
@@ -463,7 +476,7 @@ class StatCard extends StatelessWidget {
     required this.value,
     this.valueSuffix,
     this.progress,
-    this.color = Ui.accent,
+    this.color,
     this.caption,
     this.onTap,
   });
@@ -472,7 +485,7 @@ class StatCard extends StatelessWidget {
   final String value;
   final String? valueSuffix;
   final double? progress;
-  final Color color;
+  final Color? color;
   final String? caption;
   final VoidCallback? onTap;
 
@@ -491,13 +504,13 @@ class StatCard extends StatelessWidget {
                 Text(label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Ui.subtext)),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Ui.subtext)),
                 const SizedBox(height: 6),
                 Text.rich(
                   TextSpan(children: [
                     TextSpan(text: value),
                     if (valueSuffix != null)
-                      TextSpan(text: ' $valueSuffix', style: TextStyle(fontSize: 14, color: color)),
+                      TextSpan(text: ' $valueSuffix', style: TextStyle(fontSize: 14, color: color ?? Ui.accent)),
                   ]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -510,7 +523,7 @@ class StatCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: progress!.clamp(0, 1),
                       minHeight: 6,
-                      color: color,
+                      color: color ?? Ui.accent,
                       backgroundColor: Ui.line,
                     ),
                   ),
@@ -520,7 +533,7 @@ class StatCard extends StatelessWidget {
                   Text(caption!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: Ui.subtext)),
+                      style: TextStyle(fontSize: 12, color: Ui.subtext)),
                 ],
               ],
             ),

@@ -41,7 +41,7 @@ class _MapleScreenState extends State<MapleScreen> {
       actions: [
         IconButton(
           tooltip: 'AI 메이플 코치',
-          icon: const Icon(Icons.auto_awesome, color: Ui.purple),
+          icon: Icon(Icons.auto_awesome, color: Ui.purple),
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiScreen())),
         ),
         if (maple != null && chars.isNotEmpty)
@@ -171,7 +171,7 @@ class _MapleScreenState extends State<MapleScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('매주 잡는 보스를 등록하면 주간 메소 수익을 계산해 줘요.',
+                Text('매주 잡는 보스를 등록하면 주간 메소 수익을 계산해 줘요.',
                     style: TextStyle(color: Ui.subtext)),
                 const SizedBox(height: 10),
                 FilledButton(
@@ -233,7 +233,7 @@ class _NoCharacter extends StatelessWidget {
             hasKey
                 ? '닉네임으로 검색하면 레벨·전투력이 자동으로 기록되고 목표에 반영돼요.'
                 : '넥슨 Open API 키를 넣으면 닉네임으로 캐릭터를 불러올 수 있어요.',
-            style: const TextStyle(color: Ui.subtext, height: 1.45),
+            style: TextStyle(color: Ui.subtext, height: 1.45),
           ),
           const SizedBox(height: 12),
           FilledButton(
@@ -334,14 +334,14 @@ class _CharacterCard extends StatelessWidget {
                       Text('${c.job} · ${c.world}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12.5, color: Ui.subtext)),
+                          style: TextStyle(fontSize: 12.5, color: Ui.subtext)),
                       const SizedBox(height: 8),
                       Text.rich(
                         TextSpan(children: [
                           TextSpan(text: 'Lv.${c.level} '),
                           TextSpan(
                             text: '${c.expRate.toStringAsFixed(2)}%',
-                            style: const TextStyle(color: Ui.accent, fontSize: 13),
+                            style: TextStyle(color: Ui.accent, fontSize: 13),
                           ),
                         ]),
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
@@ -351,7 +351,7 @@ class _CharacterCard extends StatelessWidget {
                       if (c.combatPower != null) ...[
                         const SizedBox(height: 4),
                         Text('전투력 ${koreanNumber(c.combatPower!)}',
-                            style: const TextStyle(fontSize: 12.5, color: Ui.subtext)),
+                            style: TextStyle(fontSize: 12.5, color: Ui.subtext)),
                       ],
                     ],
                   ),
@@ -361,7 +361,7 @@ class _CharacterCard extends StatelessWidget {
                   onPressed: busy || maple == null ? null : () => runNexon(context, () => maple.refresh(c)),
                   icon: busy
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.refresh, color: Ui.subtext),
+                      : Icon(Icons.refresh, color: Ui.subtext),
                 ),
               ],
             ),

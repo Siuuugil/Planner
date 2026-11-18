@@ -32,7 +32,7 @@ class ScheduleTile extends StatelessWidget {
       title: Text(
         schedule.title,
         style: schedule.done
-            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
+            ? TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
             : null,
       ),
       subtitle: Text(
@@ -299,11 +299,11 @@ class GameTag extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: const Color(0xFFF3EEFF),
+          color: Ui.purple.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text('게임 · $name',
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Ui.purple)),
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Ui.purple)),
       );
 }
 
@@ -321,7 +321,7 @@ class RepeatPicker extends StatelessWidget {
     final idx = Repeat.choices.indexWhere((c) => c.$2 == null ? repeat == null : c.$2!.sameRule(repeat));
     return Row(
       children: [
-        const Icon(Icons.repeat, size: 20, color: Ui.subtext),
+        Icon(Icons.repeat, size: 20, color: Ui.subtext),
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButton<int>(

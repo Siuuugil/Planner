@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../config.dart';
 import '../data/store_scope.dart';
 import '../desktop/desktop_shell.dart';
+import '../ui/theme_controller.dart';
 import '../ai/ai_service.dart';
 import '../ai/autopilot.dart';
 import '../ai/claude_cli.dart';
@@ -57,12 +58,31 @@ class SettingsScreen extends StatelessWidget {
             ),
           AppSection(
             title: '화면',
-            child: SwitchListTile(
+            child: Column(children: [
+              if (ThemeScope.of(context) case final t?)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: Row(children: [
+                    const Expanded(child: Text('테마', style: TextStyle(fontSize: 16))),
+                    SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: 'system', label: Text('시스템')),
+                        ButtonSegment(value: 'light', label: Text('밝게')),
+                        ButtonSegment(value: 'dark', label: Text('어둡게')),
+                      ],
+                      selected: {t.mode},
+                      onSelectionChanged: (v) => t.mode = v.first,
+                    ),
+                  ]),
+                ),
+              SwitchListTile(
               title: const Text('게임 숨기기 (회사 모드)'),
               subtitle: const Text('홈·캘린더에서 게임 일정·숙제를 숨기고 메이플 탭도 감춰요. 이 기기에만 적용돼요.'),
               value: StoreScope.of(context).hideGames,
               onChanged: (v) => StoreScope.read(context).hideGames = v,
             ),
+            ]),
           ),
           if (notify == null)
             const AppSection(
@@ -82,7 +102,7 @@ class SettingsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Text('마이플래너 · $buildLabel',
-                textAlign: TextAlign.center, style: const TextStyle(color: Ui.subtext, fontSize: 12.5)),
+                textAlign: TextAlign.center, style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
           ),
         ],
       ),
@@ -108,7 +128,7 @@ class _NotifyPanel extends StatelessWidget {
             underline: const SizedBox(),
             borderRadius: BorderRadius.circular(10),
             dropdownColor: Ui.card,
-            style: const TextStyle(fontSize: 16, color: Ui.text),
+            style: TextStyle(fontSize: 16, color: Ui.text),
             items: [for (final o in options) DropdownMenuItem(value: o, child: Text(fmt(o)))],
             onChanged: s.enabled ? (v) => onChanged(v!) : null,
           ),
@@ -222,7 +242,7 @@ class _NexonKeyPanelState extends State<_NexonKeyPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             '1. openapi.nexon.com 에 넥슨 계정으로 로그인\n'
             '2. 애플리케이션 등록 → 메이플스토리 API 선택\n'
             '3. 발급된 API 키를 아래에 붙여넣기\n'
@@ -267,7 +287,7 @@ class _NexonKeyPanelState extends State<_NexonKeyPanel> {
             ],
           ),
           if (kIsWeb)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 '웹 버전은 로그인한 상태에서만 캐릭터 갱신이 돼요 (Supabase 중계 서버를 거쳐요). '
@@ -320,7 +340,7 @@ class _AiPanelState extends State<_AiPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'AI 기능은 이 PC에 설치된 Claude Code로 실행돼요 (내 Claude 구독 사용, 따로 API 비용 없음).\n'
             '1. Claude Code 설치 (claude.com/claude-code)\n'
             '2. 터미널에서 claude 를 한 번 실행해 로그인\n'
@@ -343,7 +363,7 @@ class _AiPanelState extends State<_AiPanel> {
             selected: {widget.ai.persona},
             onSelectionChanged: (s) => setState(() => widget.ai.persona = s.first),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Text('친구: 반말·드립 섞어 편하게 · 연인: 다정하게 챙겨 주는 말투 (폰에서 보낸 대화에도 적용)',
                 style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
@@ -436,7 +456,7 @@ class _MyVoicePanelState extends State<_MyVoicePanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'AI 답을 내 목소리로 읽어줘요. 이 PC에서 voice_server(GPT-SoVITS 또는 Qwen3-TTS)를 켜 두면, '
             '답마다 AI가 고른 감정(기쁨·차분·아쉬움·신남)에 맞는 내 녹음으로 말해요. 폰·웹도 같은 음성으로 들어요.\n'
             '설치·학습 방법: 레포의 voice_server/README.md',
@@ -460,7 +480,7 @@ class _MyVoicePanelState extends State<_MyVoicePanel> {
           ),
           const SizedBox(height: 14),
           const Text('직접 입력해서 듣기', style: TextStyle(fontWeight: FontWeight.w700)),
-          const Text('쓴 문장을 AI 없이 그대로 읽어요. 감정을 바꿔 가며 들어보세요.',
+          Text('쓴 문장을 AI 없이 그대로 읽어요. 감정을 바꿔 가며 들어보세요.',
               style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
           const SizedBox(height: 8),
           TextField(
@@ -477,7 +497,7 @@ class _MyVoicePanelState extends State<_MyVoicePanel> {
                 underline: const SizedBox(),
                 borderRadius: BorderRadius.circular(10),
                 dropdownColor: Ui.card,
-                style: const TextStyle(fontSize: 15, color: Ui.text),
+                style: TextStyle(fontSize: 15, color: Ui.text),
                 items: [
                   for (final e in voiceEmotions) DropdownMenuItem(value: e, child: Text(_labels[e] ?? e)),
                 ],
@@ -568,7 +588,7 @@ class _AutopilotPanelState extends State<_AutopilotPanel> {
               children: [
                 Expanded(
                   child: Text(ap.lastResult ?? '아직 실행 기록이 없어요',
-                      style: const TextStyle(color: Ui.subtext, fontSize: 12.5)),
+                      style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
                 ),
                 OutlinedButton(
                   onPressed: _running

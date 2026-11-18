@@ -64,7 +64,7 @@ Future<void> showCaptureDialog(BuildContext context, AppStore store) async {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('생각·링크를 적어 두면 PC 마을이 디스코드로 물어보고 정리해요.',
+          Text('생각·링크를 적어 두면 PC 마을이 디스코드로 물어보고 정리해요.',
               style: TextStyle(fontSize: 13, color: Ui.subtext)),
           const SizedBox(height: 12),
           TextField(

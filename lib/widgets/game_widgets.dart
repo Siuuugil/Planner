@@ -43,7 +43,7 @@ class ChoreTile extends StatelessWidget {
         leading: BossIcon(chore.title, size: 42, dim: done),
         title: Text(
           chore.title,
-          style: done ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext) : null,
+          style: done ? TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext) : null,
         ),
         subtitle: Text([
           if (game.isEos(chore.charName))
@@ -63,7 +63,7 @@ class ChoreTile extends StatelessWidget {
       title: Text(
         chore.title,
         style: done
-            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
+            ? TextStyle(decoration: TextDecoration.lineThrough, color: Ui.subtext)
             : null,
       ),
       subtitle: Text([
@@ -115,7 +115,7 @@ class GoalTile extends StatelessWidget {
                   ),
                 ),
                 if (deadline != null)
-                  Text(deadline, style: const TextStyle(color: Ui.subtext, fontSize: 13)),
+                  Text(deadline, style: TextStyle(color: Ui.subtext, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 6),
@@ -127,7 +127,7 @@ class GoalTile extends StatelessWidget {
                 if (goal.autoCharId != null) '🔗 캐릭터 자동 갱신',
                 if (goal.autoMetric == 'crystal') '💎 결정석 자동 누적',
               ].join('  ·  '),
-              style: const TextStyle(color: Ui.subtext, fontSize: 13),
+              style: TextStyle(color: Ui.subtext, fontSize: 13),
             ),
           ],
         ),

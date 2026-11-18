@@ -9,6 +9,7 @@ import 'ai/my_voice.dart';
 import 'ai/voice.dart';
 import 'config.dart';
 import 'data/app_store.dart';
+import 'data/capture.dart';
 import 'desktop/desktop_shell.dart';
 import 'data/store_scope.dart';
 import 'data/sync_service.dart';
@@ -27,6 +28,8 @@ Future<void> main(List<String> args) async {
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
   final sync = SyncService(store, Supabase.instance.client);
   final notify = await NotifyService.start(store);
+  // Android: 다른 앱에서 공유한 글·링크 → 📥 수집함
+  ShareIntake.start(store);
   final supabase = Supabase.instance.client;
   final maple = await MapleService.open(
     store,
@@ -87,6 +90,7 @@ class MyPlannerApp extends StatelessWidget {
       store: store,
       child: MaterialApp(
         title: '마이플래너',
+        scaffoldMessengerKey: captureMessenger,
         debugShowCheckedModeBanner: false,
         locale: const Locale('ko', 'KR'),
         supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],

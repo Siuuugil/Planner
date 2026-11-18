@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../data/store_scope.dart';
 import '../data/app_store.dart';
+import '../data/capture.dart';
 import '../models/ai_note.dart';
 import '../models/game.dart';
 import '../models/schedule.dart';
@@ -121,6 +122,11 @@ class TodayScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        tooltip: '📥 수집',
+                        icon: const Icon(Icons.move_to_inbox_outlined),
+                        onPressed: () => showCaptureDialog(context, store),
                       ),
                       IconButton(
                         tooltip: 'AI 비서',
@@ -255,6 +261,15 @@ class TodayScreen extends StatelessWidget {
               onTap: () {
                 Navigator.pop(sheet);
                 showTaskEditor(context, TaskCategory.work);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.move_to_inbox_outlined),
+              title: const Text('📥 수집'),
+              subtitle: const Text('생각·링크 한 줄 → PC 마을이 정리'),
+              onTap: () {
+                Navigator.pop(sheet);
+                showCaptureDialog(context, StoreScope.read(context));
               },
             ),
             const SizedBox(height: 8),

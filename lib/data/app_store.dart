@@ -248,7 +248,7 @@ class AppStore extends ChangeNotifier {
   void applyRemote(Iterable<SyncRow> rows) {
     var changed = false;
     for (final r in rows) {
-      // 이 버전이 모르는 종류(이후 버전에서 추가된 것)는 건드리지 않는다.
+      // 이 버전이 모르는 종류(event·inbox 등 다른 앱이 쓰는 행)는 건드리지 않는다.
       if (!const {'schedule', 'game', 'task', 'maple', 'mark', 'ai'}.contains(r.kind)) continue;
       final local = _stamps[r.id];
       if (local != null && !r.updatedAt.isAfter(local)) continue;
@@ -319,6 +319,27 @@ class AppStore extends ChangeNotifier {
       _save();
       notifyListeners();
     }
+  }
+
+  /// 📥 수집: 떠오른 생각·공유받은 링크를 `inbox` 행으로 올린다.
+  /// 앱에는 목록으로 남기지 않고(PC 마을이 가져가서 처리) 대기열에만 넣는다.
+  /// 비어 있으면 null.
+  SyncRow? addCapture(String text, {String source = 'planner'}) {
+    final t = text.trim();
+    if (t.isEmpty) return null;
+    final now = _clock().toUtc();
+    final row = SyncRow(
+      id: newId(),
+      kind: 'inbox',
+      data: {'text': t, 'source': source, 'at': now.toIso8601String()},
+      deleted: false,
+      updatedAt: now,
+    );
+    // _known/_stamps에는 넣지 않는다: 로컬 상태가 아니라서 _diff가 삭제로 오해하면 안 됨
+    pending[row.id] = row;
+    _save();
+    onLocalChange?.call();
+    return row;
   }
 
   /// 서버에 올라간 행을 대기열에서 뺀다 (그 사이 또 바뀐 건 남긴다).

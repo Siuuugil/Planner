@@ -10,7 +10,8 @@ class SyncRow {
 
   final String id;
 
-  /// 'schedule' 또는 'game'
+  /// 'schedule', 'game', 'task', 'maple', 'mark', 'ai'
+  /// (+ 다른 앱과 함께 쓰는 'event', 'inbox')
   final String kind;
   final Map<String, dynamic>? data;
   final bool deleted;

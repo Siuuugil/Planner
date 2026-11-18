@@ -184,4 +184,51 @@ void main() {
     expect(s.games.single.isChoreDone(s.games.single.chores.single, now), isTrue);
     expect(s.pending.keys, containsAll(['g', 'done:c']));
   });
+
+  test('📥 수집은 inbox 행으로 대기열에 들어가고, 올린 뒤엔 사라진다', () async {
+    final store = await open();
+    var pushes = 0;
+    store.onLocalChange = () => pushes++;
+
+    expect(store.addCapture('   '), isNull);
+    final row = store.addCapture('  나중에 읽기 https://example.com  ')!;
+    expect(pushes, 1);
+    expect(row.kind, 'inbox');
+    expect(row.deleted, isFalse);
+    expect(row.data, {'text': '나중에 읽기 https://example.com', 'source': 'planner', 'at': now.toIso8601String()});
+    expect(row.toJson()['updated_at'], now.toIso8601String());
+    expect(store.pending[row.id], same(row));
+
+    // 앱을 다시 열어도 아직 못 올린 수집은 남아 있다
+    final reopened = await open();
+    expect(reopened.pending[row.id]!.data!['text'], '나중에 읽기 https://example.com');
+
+    // 다른 변경(commit)이 수집을 삭제로 바꾸지 않는다
+    reopened.upsertSchedule(sched('a', '레이드'));
+    expect(reopened.pending[row.id]!.deleted, isFalse);
+    expect(reopened.schedules, hasLength(1));
+
+    reopened.markPushed(reopened.pending.values.toList());
+    expect(reopened.pending, isEmpty);
+  });
+
+  test('PC 마을이 처리한 inbox·event 행은 받아도 무시한다', () async {
+    final store = await open();
+    store.upsertSchedule(sched('a', '레이드'));
+    store.markPushed(store.pending.values.toList());
+    store.applyRemote([
+      SyncRow(id: 'x', kind: 'inbox', data: null, deleted: true, updatedAt: now.add(const Duration(minutes: 1))),
+      SyncRow(
+          id: 'y',
+          kind: 'event',
+          data: {'title': '알림'},
+          deleted: false,
+          updatedAt: now.add(const Duration(minutes: 1))),
+    ]);
+    expect(store.schedules.single.title, '레이드');
+    expect(store.tasks, isEmpty);
+    expect(store.pending, isEmpty);
+    store.commit();
+    expect(store.pending, isEmpty);
+  });
 }

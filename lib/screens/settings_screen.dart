@@ -1,8 +1,14 @@
+import 'dart:convert';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import '../data/app_store.dart';
+import '../data/backup_file.dart';
 import '../data/store_scope.dart';
 import '../desktop/desktop_shell.dart';
 import '../ui/theme_controller.dart';
@@ -99,6 +105,7 @@ class SettingsScreen extends StatelessWidget {
             if (AutopilotScope.of(context) case final ap?) _AutopilotPanel(ap),
             if (VoiceScope.myVoiceOf(context) case final mv? when MyVoice.supported) _MyVoicePanel(ai, mv),
           ],
+          const _BackupPanel(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Text('마이플래너 · $buildLabel',
@@ -606,5 +613,116 @@ class _AutopilotPanelState extends State<_AutopilotPanel> {
         ]),
       ),
     );
+  }
+}
+
+/// 백업: 내보내기(파일)·되돌리기(합치기/그대로 되돌리기), PC는 매일 자동 백업
+class _BackupPanel extends StatefulWidget {
+  const _BackupPanel();
+
+  @override
+  State<_BackupPanel> createState() => _BackupPanelState();
+}
+
+class _BackupPanelState extends State<_BackupPanel> {
+  String? _status;
+
+  void _say(String s) => setState(() => _status = s);
+
+  Future<void> _export() async {
+    final store = StoreScope.read(context);
+    final now = DateTime.now();
+    final name = 'myplanner-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.json';
+    try {
+      final r = await saveBackupFile(name, const JsonEncoder.withIndent(' ').convert(store.exportData()));
+      if (r != null) _say(r);
+    } catch (e) {
+      _say('내보내지 못했어요: $e');
+    }
+  }
+
+  Future<void> _import() async {
+    final store = StoreScope.read(context);
+    final XFile? f;
+    try {
+      f = await openFile(acceptedTypeGroups: const [XTypeGroup(label: '마이플래너 백업', extensions: ['json'])]);
+    } catch (e) {
+      _say('파일을 열지 못했어요: $e');
+      return;
+    }
+    if (f == null || !mounted) return;
+    final Map<String, dynamic> backup;
+    try {
+      backup = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+      if (backup['app'] != 'myplanner') throw const FormatException();
+    } catch (_) {
+      _say('마이플래너 백업 파일이 아니에요');
+      return;
+    }
+    if (!mounted) return;
+    final when = '${backup['exportedAt'] ?? ''}'.split('T').first;
+    final mode = await showDialog<String>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('백업 되돌리기'),
+        content: Text('$when 백업이에요.\n\n'
+            '합치기: 백업에 있는 항목만 그 때 내용으로 바꾸고, 나머지는 그대로 둬요.\n'
+            '그대로 되돌리기: 백업 시점과 똑같이 만들어요. 그 뒤에 만든 항목은 모든 기기에서 지워져요.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(d, 'replace'), child: Text('그대로 되돌리기', style: TextStyle(color: Ui.red))),
+          FilledButton(onPressed: () => Navigator.pop(d, 'merge'), child: const Text('합치기')),
+        ],
+      ),
+    );
+    if (mode == null) return;
+    try {
+      final (n, removed) = store.importData(backup, replace: mode == 'replace');
+      _say('되돌렸어요: $n개${removed > 0 ? ' · 지운 것 $removed개' : ''} (동기화로 다른 기기에도 반영돼요)');
+    } catch (e) {
+      _say('되돌리지 못했어요: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dir = autoBackupDir();
+    return AppSection(
+      title: '백업',
+      icon: Icons.backup_outlined,
+      accent: Ui.green,
+      subtitle: '일정·할 일·게임·캐릭터·완료 기록·AI 노트를 파일 하나로. 계정 동기화와 별개로 내 손에 두는 사본이에요.'
+          '${dir == null ? '' : '\nPC는 매일 자동으로 $dir 에 저장해요 (최근 14개).'}',
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(onPressed: _export, icon: const Icon(Icons.file_download_outlined), label: const Text('내보내기')),
+              OutlinedButton.icon(onPressed: _import, icon: const Icon(Icons.restore), label: const Text('되돌리기')),
+            ],
+          ),
+          if (_status != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_status!, style: const TextStyle(fontSize: 13)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// PC 자동 백업을 켤지 (기본 켜짐) — 앱 시작 때와 6시간마다 확인
+Future<void> runAutoBackup(AppStore store) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (!(prefs.getBool('auto_backup') ?? true)) return;
+  try {
+    await autoBackup(store, () => const JsonEncoder.withIndent(' ').convert(store.exportData()));
+  } catch (e) {
+    debugPrint('자동 백업 실패: $e');
   }
 }

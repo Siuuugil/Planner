@@ -321,4 +321,40 @@ void main() {
     expect(store.tasks, isEmpty);
     expect(store.pending.containsKey('e2'), isFalse);
   });
+
+  group('백업', () {
+    test('내보낸 것을 합치기로 되돌리면 백업 항목만 덮어쓰고 나머지는 둔다', () async {
+      final store = await open();
+      store.upsertSchedule(sched('a', '레이드'));
+      store.upsertTask(Task(id: 't', title: '보고서', category: TaskCategory.work, steps: [TaskStep('자료')]));
+      final backup = store.exportData();
+      expect(backup['app'], 'myplanner');
+
+      store.schedules.single.title = '바뀐 제목';
+      store.upsertSchedule(sched('b', '새 일정'));
+      final (n, removed) = store.importData(backup);
+      expect((n, removed), (2, 0));
+      expect(store.schedules.map((s) => s.title).toSet(), {'레이드', '새 일정'});
+      expect(store.tasks.single.steps.single.title, '자료');
+      expect(store.pending, contains('a')); // 되돌린 내용도 동기화로 올라감
+    });
+
+    test('그대로 되돌리기는 백업에 없는 항목을 지우고 삭제로 올린다', () async {
+      final store = await open();
+      store.upsertSchedule(sched('a', '레이드'));
+      store.pending.clear();
+      final backup = store.exportData();
+      store.upsertSchedule(sched('b', '나중에 만든 일정'));
+      store.pending.clear();
+      final (_, removed) = store.importData(backup, replace: true);
+      expect(removed, 1);
+      expect(store.schedules.map((s) => s.id), ['a']);
+      expect(store.pending['b']!.deleted, isTrue);
+    });
+
+    test('마이플래너 백업이 아니면 거절', () async {
+      final store = await open();
+      expect(() => store.importData({'hello': 1}), throwsFormatException);
+    });
+  });
 }

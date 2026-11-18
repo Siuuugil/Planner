@@ -437,6 +437,69 @@ class AppStore extends ChangeNotifier {
   }
 
   /// 로그아웃/계정 변경 시 이 기기의 데이터를 모두 지운다.
+  // ── 백업 ──
+
+  /// 백업 JSON (일정·게임·할 일·캐릭터·완료 기록·AI 노트). 동기화 상태·수집함은 빼고
+  Map<String, dynamic> exportData() => {
+        'app': 'myplanner',
+        'version': 1,
+        'exportedAt': _clock().toUtc().toIso8601String(),
+        'data': {
+          'schedules': schedules.map((s) => s.toJson()).toList(),
+          'games': games.map((g) => g.toJson()).toList(),
+          'tasks': tasks.map((t) => t.toJson()).toList(),
+          'characters': characters.map((c) => c.toJson()).toList(),
+          'marks': marks.values.map((m) => m.toJson()).toList(),
+          'notes': notes.map((n) => n.toJson()).toList(),
+        },
+      };
+
+  /// 백업 되돌리기. [replace]면 백업에 없는 항목은 지운다(모든 기기에서). 아니면 백업 항목만 덮어쓰고 나머지는 둔다.
+  /// 바뀐 항목은 평소처럼 동기화로 올라간다. 반환: (덮어쓴/추가한 수, 지운 수)
+  (int, int) importData(Map<String, dynamic> backup, {bool replace = false}) {
+    if (backup['app'] != 'myplanner' || backup['data'] is! Map) {
+      throw const FormatException('마이플래너 백업 파일이 아니에요');
+    }
+    final d = (backup['data'] as Map).cast<String, dynamic>();
+    List<T> read<T>(String k, T Function(Map<String, dynamic>) f) =>
+        [for (final e in (d[k] as List? ?? [])) if (e is Map) f(e.cast<String, dynamic>())];
+    final s = read('schedules', Schedule.fromJson);
+    final g = read('games', Game.fromJson);
+    final t = read('tasks', Task.fromJson);
+    final c = read('characters', MapleCharacter.fromJson);
+    final m = read('marks', DoneMark.fromJson);
+    final n = read('notes', AiNote.fromJson);
+    var removed = 0;
+    void put<T>(List<T> into, List<T> from, String Function(T) id) {
+      if (replace) {
+        removed += into.where((x) => !from.any((y) => id(y) == id(x))).length;
+        into
+          ..clear()
+          ..addAll(from);
+        return;
+      }
+      for (final x in from) {
+        final i = into.indexWhere((y) => id(y) == id(x));
+        i < 0 ? into.add(x) : into[i] = x;
+      }
+    }
+
+    put<Schedule>(schedules, s, (x) => x.id);
+    put<Game>(games, g, (x) => x.id);
+    put<Task>(tasks, t, (x) => x.id);
+    put<MapleCharacter>(characters, c, (x) => x.id);
+    put<AiNote>(notes, n, (x) => x.id);
+    if (replace) {
+      removed += marks.keys.where((k) => !m.any((x) => x.id == k)).length;
+      marks.clear();
+    }
+    for (final x in m) {
+      marks[x.id] = x;
+    }
+    commit();
+    return (s.length + g.length + t.length + c.length + m.length + n.length, removed);
+  }
+
   void clearAll() {
     schedules.clear();
     games.clear();

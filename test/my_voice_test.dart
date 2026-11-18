@@ -120,7 +120,9 @@ void main() {
       ),
     ));
     await tester.scrollUntilVisible(find.text('읽어보기'), 300, scrollable: find.byType(Scrollable).first);
-    await tester.enterText(find.widgetWithText(TextField, '').last, '자기야 오늘 고생했어');
+    await tester.enterText(find.widgetWithText(TextField, '예: 오늘 하루도 고생 많았어. 얼른 씻고 자자.'), '자기야 오늘 고생했어');
+    await tester.ensureVisible(find.text('읽어보기'));
+    await tester.pump();
     await tester.tap(find.text('읽어보기'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(sent.single['text'], '자기야 오늘 고생했어');

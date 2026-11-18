@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -18,6 +20,7 @@ import 'maple/maple_service.dart';
 import 'notify/notify_service.dart';
 import 'screens/account_screen.dart';
 import 'screens/home_shell.dart';
+import 'screens/settings_screen.dart' show runAutoBackup;
 import 'ui/kit.dart';
 import 'ui/theme_controller.dart';
 
@@ -84,6 +87,9 @@ Future<void> main(List<String> args) async {
   final voice = await VoiceService.open()
     ..resolveAudio = (path) async =>
         supabase.auth.currentUser == null ? null : supabase.storage.from(bucket).createSignedUrl(path, 600);
+  // PC: 하루 한 번 자동 백업 (문서\\MyPlanner\\backups)
+  unawaited(runAutoBackup(store));
+  Timer.periodic(const Duration(hours: 6), (_) => runAutoBackup(store));
   runApp(MyPlannerApp(
       store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice, desktop: desktop, autopilot: autopilot, theme: theme));
   maple.refreshStale();

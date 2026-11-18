@@ -47,6 +47,11 @@ Supabase 프로젝트 `game-planner`(서울)의 `public.items` 테이블 하나�
 
 ## 작업 규칙
 
+여러 세션(Claude)이 이 레포를 같이 쓴다. 서로 덮어쓰지 않게:
+
+- **작업 시작 전 기본 브랜치를 최신으로 받는다.** `git fetch` 후 뒤처져 있으면 `git pull`, 이미 최신이면 받지 말고 그대로 작업.
+- **기능을 추가하거나 구조를 바꾸면 이 파일(CLAUDE.md)도 갱신한다.** 새 `kind`·공유 자원·폴더·규칙이 생기면 해당 섹션에 적는다.
+
 - **공개 레포**: 비밀값(API 키, 토큰, 비밀번호) 커밋 금지. `lib/config.dart`의 Supabase publishable key는 공개용이라 괜찮음.
 - **녹음·음성 파일 커밋 금지**: 실제 사람 목소리(`voice_server/refs/`, `voice.json`, `*.wav`, `*.mp3`)는 레포에 올리지 않는다 (`voice_server/.gitignore`로 막혀 있음).
 - **웹 빌드**: `dart:io`를 직접 import하지 말 것. PC 전용 코드는 `claude_cli.dart`·`desktop/desktop_shell.dart`처럼 `_io.dart`/`_stub.dart` 조건부 export로 나눈다.

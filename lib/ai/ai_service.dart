@@ -283,7 +283,14 @@ String describeAction(Map<String, dynamic> a) => switch (a['type']) {
 
 /// AI 기능 (PC에서 Claude CLI 사용). 실행 경로는 기기별 설정.
 class AiService extends ChangeNotifier {
-  AiService(this.store, this._prefs, {this.askOverride, bool? supportedOverride, this.voiceMaker, this.voiceRemover})
+  AiService(this.store, this._prefs,
+      {this.askOverride,
+      bool? supportedOverride,
+      this.voiceMaker,
+      this.voiceRemover,
+      this.voiceReady,
+      this.claimWait = const Duration(seconds: 3),
+      this.deviceIdOverride})
       : _supported = supportedOverride {
     // 이 PC가 폰·웹의 대화 요청에 답한다 (PC 앱이 켜져 있을 때)
     if (supported) store.addListener(_scheduleRemote);
@@ -315,6 +322,26 @@ class AiService extends ChangeNotifier {
   Future<String?> sampleVoice(String text, String emotion) async =>
       voiceMaker?.call('sample_$emotion', text, emotion);
 
+  /// 이 PC의 '내 목소리'가 지금 바로 쓸 수 있는지 (켜져 있고 서버가 응답) — 이런 PC가 먼저 답한다
+  final Future<bool> Function()? voiceReady;
+
+  /// 폰·웹 요청을 잡은 뒤 다른 PC와 겹치는지 확인하려고 기다리는 시간 (동기화 왕복)
+  final Duration claimWait;
+
+  /// 테스트용: 기기 id 직접 지정
+  final String? deviceIdOverride;
+
+  /// 이 기기 고유 id (여러 PC 중 누가 답하는지 구분)
+  String get deviceId {
+    if (deviceIdOverride != null) return deviceIdOverride!;
+    var id = _prefs.getString('device_id');
+    if (id == null) {
+      id = newId();
+      _prefs.setString('device_id', id);
+    }
+    return id;
+  }
+
   /// 대화 지우기 (음성 파일 포함)
   void deleteChats(List<AiNote> chats) {
     final audio = [for (final c in chats) if (c.audio != null) c.audio!];
@@ -336,8 +363,10 @@ class AiService extends ChangeNotifier {
     AppStore store, {
     Future<String?> Function(String id, String text, String emotion)? voiceMaker,
     Future<void> Function(List<String> audio)? voiceRemover,
+    Future<bool> Function()? voiceReady,
   }) async =>
-      AiService(store, await SharedPreferences.getInstance(), voiceMaker: voiceMaker, voiceRemover: voiceRemover);
+      AiService(store, await SharedPreferences.getInstance(),
+          voiceMaker: voiceMaker, voiceRemover: voiceRemover, voiceReady: voiceReady);
 
   bool get supported => _supported ?? (askOverride != null || ClaudeCli.supported);
 
@@ -379,27 +408,65 @@ class AiService extends ChangeNotifier {
   }
 
   /// 대기 중인 요청(15분 이내) 하나에 답한다. 끝나면 다음 것을 다시 확인.
-  Future<void> _answerRemote() async {
-    if (running != null) return;
-    final cutoff = DateTime.now().subtract(const Duration(minutes: 15));
+  bool _answering = false;
+
+  /// 답할 요청: 15분 안에 온 대기 요청, 또는 다른 PC가 잡고 3분 넘게 못 끝낸 요청 (꺼졌다고 보고 이어받음)
+  AiNote? _nextRequest() {
+    final now = DateTime.now();
+    final cutoff = now.subtract(const Duration(minutes: 15));
+    final stale = now.subtract(const Duration(minutes: 3));
     final todo = store.notes
-        .where((n) => n.type == 'chat' && n.status == 'pending' && n.createdAt.isAfter(cutoff))
+        .where((n) =>
+            n.type == 'chat' &&
+            n.createdAt.isAfter(cutoff) &&
+            (n.status == 'pending' ||
+                (n.status == 'working' && (n.claimedAt == null || n.claimedAt!.isBefore(stale)))))
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    if (todo.isEmpty) return;
-    final req = todo.first;
-    store.saveNote(AiNote(id: req.id, type: 'chat', title: req.title, body: '', createdAt: req.createdAt, status: 'working'));
+    return todo.firstOrNull;
+  }
+
+  /// 대기 중인 폰·웹 요청 하나에 답한다. 여러 PC가 켜져 있으면 한 대만:
+  /// 내 목소리가 준비된 PC가 바로 잡고, 아닌 PC는 잠깐 기다렸다가 아무도 안 잡았을 때만 잡는다.
+  /// 잡은 뒤 동기화가 한 바퀴 돌 동안 기다려서, 다른 PC가 나중에 잡았으면(나중 기록이 이김) 물러난다.
+  Future<void> _answerRemote() async {
+    if (running != null || _answering) return;
+    final first = _nextRequest();
+    if (first == null) return;
+    _answering = true;
     try {
-      final json = await _ask('폰·웹 대화', _chatPromptFor(req.title, excludeId: req.id));
-      final ans = parseChat(json, req.title, req.createdAt);
-      store.saveNote(await _withVoice(AiNote(
-          id: req.id, type: 'chat', title: req.title, body: ans.body, createdAt: req.createdAt,
-          actions: ans.actions, emotion: ans.emotion)));
-    } on ClaudeCliException catch (e) {
+      var ready = false;
+      try {
+        ready = await voiceReady?.call() ?? false;
+      } catch (_) {}
+      if (!ready) {
+        await Future<void>.delayed(claimWait * 2);
+        if (_nextRequest()?.id != first.id) return; // 그새 다른 PC가 잡음
+      }
+      final me = deviceId;
       store.saveNote(AiNote(
-          id: req.id, type: 'chat', title: req.title, body: 'PC에서 답하지 못했어요: ${e.message}', createdAt: req.createdAt, status: 'error'));
+          id: first.id, type: 'chat', title: first.title, body: '', createdAt: first.createdAt,
+          status: 'working', by: me, claimedAt: DateTime.now()));
+      await Future<void>.delayed(claimWait);
+      final cur = store.notes.where((n) => n.id == first.id).firstOrNull;
+      if (cur == null || cur.status != 'working' || cur.by != me) return; // 다른 PC가 가져감
+
+      final req = first;
+      try {
+        final json = await _ask('폰·웹 대화', _chatPromptFor(req.title, excludeId: req.id));
+        final ans = parseChat(json, req.title, req.createdAt);
+        store.saveNote(await _withVoice(AiNote(
+            id: req.id, type: 'chat', title: req.title, body: ans.body, createdAt: req.createdAt,
+            actions: ans.actions, emotion: ans.emotion, by: me)));
+      } on ClaudeCliException catch (e) {
+        store.saveNote(AiNote(
+            id: req.id, type: 'chat', title: req.title, body: 'PC에서 답하지 못했어요: ${e.message}',
+            createdAt: req.createdAt, status: 'error', by: me));
+      }
+    } finally {
+      _answering = false;
+      _scheduleRemote();
     }
-    _scheduleRemote();
   }
 
   /// 폰·웹: PC에게 대화 요청을 보낸다 (PC 앱이 켜져 있으면 답이 동기화돼서 온다)

@@ -63,6 +63,18 @@ Future<void> main(List<String> args) async {
             return path;
           },
     voiceRemover: (paths) => supabase.storage.from(bucket).remove(paths),
+    // 내 목소리 서버가 켜진 PC가 폰 질문을 먼저 잡는다 (집 PC와 회사 노트북이 같이 켜져 있을 때)
+    voiceReady: !MyVoice.supported
+        ? null
+        : () async {
+            if (!myVoice.enabled || supabase.auth.currentUser == null) return false;
+            try {
+              await myVoice.health();
+              return true;
+            } catch (_) {
+              return false;
+            }
+          },
   );
   final voice = await VoiceService.open()
     ..resolveAudio = (path) async =>

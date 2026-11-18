@@ -180,7 +180,7 @@ void main() {
       // PC: 같은 요청이 동기화로 들어오면 답한다
       final pcStore = AppStore(prefs);
       final prompts = <String>[];
-      AiService(pcStore, prefs, askOverride: (p) async {
+      AiService(pcStore, prefs, claimWait: Duration.zero, askOverride: (p) async {
         prompts.add(p);
         return {'reply': '보고서부터 해요', 'actions': []};
       });
@@ -198,7 +198,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final store = AppStore(prefs);
-      final ai = AiService(store, prefs, askOverride: (_) async => throw ClaudeCliException('로그인 필요'));
+      final ai = AiService(store, prefs, claimWait: Duration.zero, askOverride: (_) async => throw ClaudeCliException('로그인 필요'));
       store.saveNote(AiNote(
           id: 'chat:old', type: 'chat', title: '옛날', body: '', status: 'pending',
           createdAt: DateTime.now().subtract(const Duration(hours: 1))));
@@ -287,5 +287,64 @@ void main() {
 
   test('답의 마크다운 굵게·제목 기호는 지우고 보여준다', () {
     expect(plainText('**1순위: 보험**\n## 다음\n내용'), '1순위: 보험\n다음\n내용');
+  });
+
+  group('PC 여러 대가 켜져 있을 때', () {
+    // 같은 계정의 PC 두 대가 같은 동기화 상태를 본다고 가정 (한 store 를 같이 씀)
+    Future<(AppStore, List<String>)> twoPcs({required bool aVoice, required bool bVoice}) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final store = AppStore(prefs);
+      final asked = <String>[];
+      for (final (name, voice) in [('A', aVoice), ('B', bVoice)]) {
+        AiService(store, prefs,
+            deviceIdOverride: name,
+            claimWait: const Duration(milliseconds: 20),
+            voiceReady: () async => voice,
+            askOverride: (_) async {
+              asked.add(name);
+              return {'reply': '$name 가 답함', 'actions': []};
+            });
+      }
+      return (store, asked);
+    }
+
+    AiNote request(String id, {String status = 'pending', String? by, DateTime? claimedAt}) => AiNote(
+        id: id, type: 'chat', title: '질문', body: '', createdAt: DateTime.now(), status: status, by: by, claimedAt: claimedAt);
+
+    test('내 목소리가 준비된 PC가 먼저 잡고, 다른 PC는 물러난다', () async {
+      final (store, asked) = await twoPcs(aVoice: false, bVoice: true);
+      store.saveNote(request('chat:1'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(asked, ['B']);
+      final n = store.notes.single;
+      expect((n.status, n.by, n.body), (null, 'B', 'B 가 답함'));
+    });
+
+    test('둘 다 같은 조건이어도 한 대만 답한다', () async {
+      final (store, asked) = await twoPcs(aVoice: false, bVoice: false);
+      store.saveNote(request('chat:2'));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(asked.length, 1);
+      expect(store.notes.single.status, isNull);
+    });
+
+    test('다른 PC가 잡고 3분 넘게 못 끝낸 요청은 이어받는다', () async {
+      final (store, asked) = await twoPcs(aVoice: true, bVoice: false);
+      store.saveNote(request('chat:3',
+          status: 'working', by: 'C', claimedAt: DateTime.now().subtract(const Duration(minutes: 5))));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(asked, ['A']);
+      // 방금 잡힌 요청은 건드리지 않는다
+      store.saveNote(request('chat:4', status: 'working', by: 'C', claimedAt: DateTime.now()));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(asked, ['A']);
+    });
+
+    test('잡은 기기·시각은 JSON으로 오간다', () {
+      final at = DateTime(2026, 11, 18, 9);
+      final back = AiNote.fromJson(request('chat:5', status: 'working', by: 'A', claimedAt: at).toJson());
+      expect((back.by, back.claimedAt), ('A', at));
+    });
   });
 }

@@ -37,6 +37,8 @@ class AiNote {
     this.status,
     this.emotion,
     this.audio,
+    this.by,
+    this.claimedAt,
   })  : blocks = blocks ?? [],
         bullets = bullets ?? [],
         actions = actions ?? [];
@@ -71,6 +73,12 @@ class AiNote {
   /// '내 목소리'로 만든 음성 파일 (Supabase Storage 'voice' 버킷 경로)
   final String? audio;
 
+  /// 폰·웹 요청을 잡은 PC (기기 id) — 여러 PC가 켜져 있어도 한 대만 답하게
+  final String? by;
+
+  /// PC가 요청을 잡은 시각 (오래되면 다른 PC가 이어받음)
+  final DateTime? claimedAt;
+
   bool get waiting => status == 'pending' || status == 'working';
 
   Map<String, dynamic> toJson() => {
@@ -86,6 +94,8 @@ class AiNote {
         if (status != null) 'status': status,
         if (emotion != null) 'emotion': emotion,
         if (audio != null) 'audio': audio,
+        if (by != null) 'by': by,
+        if (claimedAt != null) 'claimedAt': claimedAt!.toIso8601String(),
       };
 
   factory AiNote.fromJson(Map<String, dynamic> j) => AiNote(
@@ -101,11 +111,13 @@ class AiNote {
         status: j['status'] as String?,
         emotion: j['emotion'] as String?,
         audio: j['audio'] as String?,
+        by: j['by'] as String?,
+        claimedAt: j['claimedAt'] == null ? null : DateTime.tryParse(j['claimedAt'] as String),
       );
 
   AiNote withVoice({String? emotion, String? audio}) => AiNote(
         id: id, type: type, title: title, body: body, createdAt: createdAt, date: date,
         blocks: blocks, bullets: bullets, actions: actions, status: status,
-        emotion: emotion ?? this.emotion, audio: audio ?? this.audio,
+        emotion: emotion ?? this.emotion, audio: audio ?? this.audio, by: by, claimedAt: claimedAt,
       );
 }

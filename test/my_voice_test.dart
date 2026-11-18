@@ -41,6 +41,7 @@ void main() {
       final store = AppStore(prefs);
       final removed = <String>[];
       final ai = AiService(store, prefs,
+          claimWait: Duration.zero,
           askOverride: (_) async => {'reply': '보스 다 잡았네요!', 'emotion': 'excited', 'actions': []},
           voiceMaker: maker,
           voiceRemover: (p) async => removed.addAll(p));

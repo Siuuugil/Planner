@@ -372,7 +372,7 @@ class _AiPanelState extends State<_AiPanel> {
           ),
           Padding(
             padding: EdgeInsets.only(top: 6),
-            child: Text('친구: 반말·드립 섞어 편하게 · 연인: 다정하게 챙겨 주는 말투 (폰에서 보낸 대화에도 적용)',
+            child: Text('친구: 반말·욕·수위 있는 드립까지 편하게 · 연인: 다정하게 챙기면서 플러팅·농담 (폰에서 보낸 대화에도 적용)',
                 style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
           ),
           SwitchListTile(

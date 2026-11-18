@@ -51,6 +51,7 @@ Supabase 프로젝트 `game-planner`(서울)의 `public.items` 테이블 하나�
 
 - **작업 시작 전 기본 브랜치를 최신으로 받는다.** `git fetch` 후 뒤처져 있으면 `git pull`, 이미 최신이면 받지 말고 그대로 작업.
 - **기능을 추가하거나 구조를 바꾸면 이 파일(CLAUDE.md)도 갱신한다.** 새 `kind`·공유 자원·폴더·규칙이 생기면 해당 섹션에 적는다.
+- **집 PC에서만 할 수 있는 일·실기기 테스트는 `HOME_PC_TODO.md`에 쌓는다.** 밖(회사·클라우드)에서 기능을 만들면 확인할 항목을 거기 추가. 사용자가 **"집 pc가 허브메모리백업"** 이라고 하면 그 파일을 열어 순서대로 같이 진행한다.
 
 - **공개 레포**: 비밀값(API 키, 토큰, 비밀번호) 커밋 금지. `lib/config.dart`의 Supabase publishable key는 공개용이라 괜찮음.
 - **녹음·음성 파일 커밋 금지**: 실제 사람 목소리(`voice_server/refs/`, `voice.json`, `*.wav`, `*.mp3`)는 레포에 올리지 않는다 (`voice_server/.gitignore`로 막혀 있음).

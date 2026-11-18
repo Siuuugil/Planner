@@ -5,9 +5,11 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   audioplayers_windows
+  file_selector_windows
   flutter_timezone
   flutter_tts
   screen_retriever_windows
+  share_plus
   speech_to_text_windows
   tray_manager
   url_launcher_windows

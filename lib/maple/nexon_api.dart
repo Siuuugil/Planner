@@ -85,6 +85,13 @@ class NexonApi {
   Future<Map<String, dynamic>> itemEquipment(String ocid) =>
       _get('/character/item-equipment', {'ocid': ocid});
 
+  /// 장착 심볼 {symbol: [{symbol_name, symbol_level, symbol_growth_count, symbol_require_growth_count, ...}]}
+  Future<Map<String, dynamic>> symbolEquipment(String ocid) =>
+      _get('/character/symbol-equipment', {'ocid': ocid});
+
+  /// 진행 중인 이벤트 공지 {event_notice: [{title, url, notice_id, date_event_start, date_event_end}]}
+  Future<Map<String, dynamic>> noticeEvents() => _get('/notice-event', {});
+
   /// final_stat 목록에서 '전투력'
   static int? combatPower(Map<String, dynamic> stat) {
     for (final s in (stat['final_stat'] as List? ?? [])) {

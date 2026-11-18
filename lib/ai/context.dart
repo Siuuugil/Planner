@@ -91,6 +91,14 @@ String mapleContext(AppStore store, DateTime now) {
         '${c.combatPower != null ? ', 전투력 ${koreanNumber(c.combatPower!)}' : ''}'
         '${rate == null ? ', 성장 기록 부족' : ', 하루 평균 ${rate.toStringAsFixed(3)}레벨 (다음 레벨까지 약 ${((c.level + 1 - c.levelProgress) / rate).ceil()}일)'}'
         '$combatTrend, 기록 ${c.history.length}일');
+    final open = c.symbols.where((s) => !s.isMax).toList();
+    if (c.symbols.isNotEmpty) {
+      b.writeln('  심볼: ${open.isEmpty ? '전부 만렙' : open.map((s) {
+            final left = s.toMax;
+            final days = left == null ? null : (left / (s.isArcane ? 20 : 10)).ceil();
+            return '${s.region} Lv.${s.level}/${s.maxLevel}${days == null ? '' : ' (만렙까지 약 $days일)'}';
+          }).join(', ')} (하루 아케인 20·어센틱 10개 기준)');
+    }
   }
 
   for (final g in store.games) {

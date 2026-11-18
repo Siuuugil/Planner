@@ -1,3 +1,65 @@
+/// 장착한 심볼 하나 (넥슨 symbol-equipment)
+class MapleSymbol {
+  MapleSymbol({required this.name, required this.level, this.growth = 0, this.require = 0, this.icon = ''});
+
+  final String name;
+  final int level;
+
+  /// 지금 모은 성장치 / 다음 레벨에 필요한 성장치
+  final int growth;
+  final int require;
+  final String icon;
+
+  bool get isArcane => name.contains('아케인');
+  bool get isGrand => name.contains('그랜드');
+  bool get isAuthentic => name.contains('어센틱') && !isGrand;
+
+  /// 만렙: 아케인 20, 어센틱·그랜드 어센틱 11
+  int get maxLevel => isArcane ? 20 : 11;
+  bool get isMax => level >= maxLevel;
+
+  /// 지역 이름 ('아케인심볼 : 소멸의 여로' → '소멸의 여로')
+  String get region => name.contains(':') ? name.split(':').last.trim() : name;
+
+  /// 레벨 n → n+1 에 필요한 성장치 (공식이 알려진 것만: 아케인 n²+11, 어센틱 9n²+20n)
+  static int? requireFor(MapleSymbol s, int n) => s.isArcane
+      ? n * n + 11
+      : s.isAuthentic
+          ? 9 * n * n + 20 * n
+          : null;
+
+  /// 만렙까지 남은 성장치 (공식이 없는 그랜드 어센틱은 null)
+  int? get toMax {
+    if (isMax) return 0;
+    var total = (require > 0 ? require : (requireFor(this, level) ?? 0)) - growth;
+    for (var n = level + 1; n < maxLevel; n++) {
+      final r = requireFor(this, n);
+      if (r == null) return null;
+      total += r;
+    }
+    return total < 0 ? 0 : total;
+  }
+
+  Map<String, dynamic> toJson() => {'name': name, 'level': level, 'growth': growth, 'require': require, 'icon': icon};
+
+  factory MapleSymbol.fromJson(Map<String, dynamic> j) => MapleSymbol(
+        name: '${j['name'] ?? ''}',
+        level: (j['level'] as num?)?.toInt() ?? 0,
+        growth: (j['growth'] as num?)?.toInt() ?? 0,
+        require: (j['require'] as num?)?.toInt() ?? 0,
+        icon: '${j['icon'] ?? ''}',
+      );
+
+  /// 넥슨 응답 한 줄
+  factory MapleSymbol.fromNexon(Map<String, dynamic> j) => MapleSymbol(
+        name: '${j['symbol_name'] ?? ''}',
+        level: (j['symbol_level'] as num?)?.toInt() ?? 0,
+        growth: (j['symbol_growth_count'] as num?)?.toInt() ?? 0,
+        require: (j['symbol_require_growth_count'] as num?)?.toInt() ?? 0,
+        icon: '${j['symbol_icon'] ?? ''}',
+      );
+}
+
 /// 하루치 성장 기록.
 class MapleSnapshot {
   MapleSnapshot({
@@ -48,7 +110,9 @@ class MapleCharacter {
     this.guild,
     this.updatedAt,
     List<MapleSnapshot>? history,
-  }) : history = history ?? [];
+    List<MapleSymbol>? symbols,
+  })  : history = history ?? [],
+        symbols = symbols ?? [];
 
   final String id;
   String name;
@@ -64,6 +128,9 @@ class MapleCharacter {
 
   /// 날짜순 성장 기록 (하루 1개)
   final List<MapleSnapshot> history;
+
+  /// 장착한 심볼 (갱신할 때 같이 불러옴)
+  final List<MapleSymbol> symbols;
 
   double get levelProgress => level + expRate / 100;
 
@@ -87,6 +154,7 @@ class MapleCharacter {
         'guild': guild,
         'updatedAt': updatedAt?.toIso8601String(),
         'history': history.map((h) => h.toJson()).toList(),
+        if (symbols.isNotEmpty) 'symbols': symbols.map((s) => s.toJson()).toList(),
       };
 
   factory MapleCharacter.fromJson(Map<String, dynamic> j) => MapleCharacter(
@@ -104,5 +172,6 @@ class MapleCharacter {
         history: (j['history'] as List? ?? [])
             .map((e) => MapleSnapshot.fromJson(e as Map<String, dynamic>))
             .toList(),
+        symbols: [for (final s in (j['symbols'] as List? ?? [])) if (s is Map) MapleSymbol.fromJson(s.cast<String, dynamic>())],
       );
 }

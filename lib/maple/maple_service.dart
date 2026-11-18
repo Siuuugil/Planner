@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/app_store.dart';
+import '../models/game.dart';
 import '../models/maple_character.dart';
+import '../models/schedule.dart';
 import 'nexon_api.dart';
 
 /// 검색 결과 미리보기 (아직 저장 안 함)
@@ -103,6 +105,15 @@ class MapleService extends ChangeNotifier {
       statCache[c.id] = results[1];
       final fresh = _fromBasic(c.id, c.ocid, results[0], NexonApi.combatPower(results[1]));
       fresh.history.addAll(c.history);
+      // 심볼 (실패해도 갱신은 계속, 이전 값 유지)
+      try {
+        final sym = await api.symbolEquipment(c.ocid);
+        fresh.symbols.addAll([
+          for (final s in (sym['symbol'] as List? ?? [])) if (s is Map) MapleSymbol.fromNexon(s.cast<String, dynamic>()),
+        ]);
+      } catch (_) {
+        fresh.symbols.addAll(c.symbols);
+      }
       fresh.putSnapshot(MapleSnapshot(
         date: kstDate(DateTime.now()),
         level: fresh.level,
@@ -110,10 +121,114 @@ class MapleService extends ChangeNotifier {
         combatPower: fresh.combatPower,
       ));
       store.upsertCharacter(fresh);
+      syncSymbolChore(fresh);
     } finally {
       busy.remove(c.id);
       notifyListeners();
     }
+  }
+
+  // ── 심볼 ──
+
+  /// 심볼 일일 퀘스트를 숙제로 자동 관리 (만렙 아닌 심볼이 있으면 숙제를 두고, 다 만렙이면 뺌)
+  bool get autoSymbolChore => _prefs.getBool('auto_symbol_chore') ?? true;
+  set autoSymbolChore(bool v) {
+    _prefs.setBool('auto_symbol_chore', v);
+    notifyListeners();
+  }
+
+  /// 하루에 모으는 심볼 개수 (지역 하나당, 기본: 아케인 20 · 어센틱 10 · 그랜드 어센틱 10)
+  int dailyGain(MapleSymbol s) =>
+      _prefs.getInt(s.isArcane ? 'sym_daily_arcane' : s.isGrand ? 'sym_daily_grand' : 'sym_daily_auth') ??
+      (s.isArcane ? 20 : 10);
+  void setDailyGain(String kind, int v) {
+    _prefs.setInt('sym_daily_$kind', v);
+    notifyListeners();
+  }
+
+  /// 만렙까지 남은 날 (공식을 모르면 null)
+  int? daysToMax(MapleSymbol s) {
+    final left = s.toMax;
+    if (left == null) return null;
+    final g = dailyGain(s);
+    return g <= 0 ? null : (left / g).ceil();
+  }
+
+  /// 캐릭터의 '심볼 일일 퀘스트' 숙제 맞추기 (id 가 정해져 있어 여러 기기에서 겹치지 않음)
+  void syncSymbolChore(MapleCharacter c) {
+    if (!autoSymbolChore || c.symbols.isEmpty) return;
+    final g = store.mapleGame();
+    final id = 'sym-${c.id}';
+    final open = c.symbols.where((s) => !s.isMax).toList();
+    final i = g.chores.indexWhere((x) => x.id == id);
+    if (open.isEmpty) {
+      if (i >= 0) {
+        g.chores.removeAt(i);
+        store.commit();
+      }
+      return;
+    }
+    final arc = open.where((s) => s.isArcane).length, auth = open.length - arc;
+    final title = '심볼 일일 · ${c.name} (${[if (arc > 0) '아케인 $arc', if (auth > 0) '어센틱 $auth'].join(' · ')})';
+    if (i >= 0) {
+      if (g.chores[i].title == title) return;
+      g.chores[i].title = title;
+    } else {
+      g.chores.add(Chore(id: id, title: title, period: ChorePeriod.daily, charName: c.name));
+    }
+    store.commit();
+  }
+
+  // ── 이벤트 공지 ──
+
+  /// 진행 중인 이벤트 (6시간 캐시)
+  List<NexonEvent> events = [];
+  DateTime? _eventsAt;
+
+  /// 이벤트 끝나는 날을 캘린더에 자동으로 넣기
+  bool get autoEventSchedules => _prefs.getBool('auto_event_schedules') ?? true;
+  set autoEventSchedules(bool v) {
+    _prefs.setBool('auto_event_schedules', v);
+    notifyListeners();
+  }
+
+  Future<List<NexonEvent>> loadEvents({bool force = false}) async {
+    if (!force && _eventsAt != null && DateTime.now().difference(_eventsAt!) < const Duration(hours: 6)) return events;
+    final j = await _api().noticeEvents();
+    events = [
+      for (final e in (j['event_notice'] as List? ?? [])) if (e is Map) NexonEvent.fromJson(e.cast<String, dynamic>()),
+    ]..sort((a, b) => (a.end ?? DateTime(2100)).compareTo(b.end ?? DateTime(2100)));
+    _eventsAt = DateTime.now();
+    if (autoEventSchedules) addEventSchedules();
+    notifyListeners();
+    return events;
+  }
+
+  /// 이벤트 끝나는 날에 종일 일정 '⏰ 이벤트 끝: …' (id 가 공지 번호로 정해져 있어 여러 기기에서도 하나).
+  /// 한 번 넣었거나 이미 본 공지는 다시 넣지 않는다 (지운 일정이 되살아나지 않게). 넣은 개수
+  int addEventSchedules() {
+    final seen = (_prefs.getStringList('nx_event_seen') ?? []).toSet();
+    final now = DateTime.now();
+    var added = 0;
+    for (final e in events) {
+      final id = 'nx-evt-${e.id}';
+      if (e.end == null || e.end!.isBefore(now) || e.end!.isAfter(now.add(const Duration(days: 90)))) continue;
+      if (seen.contains(id)) continue;
+      seen.add(id);
+      if (store.schedules.any((s) => s.id == id)) continue;
+      store.schedules.add(Schedule(
+        id: id,
+        title: '⏰ 이벤트 끝: ${e.title}',
+        start: DateTime(e.end!.year, e.end!.month, e.end!.day),
+        allDay: true,
+        memo: e.url,
+        gameId: store.mapleGame().id,
+      ));
+      added++;
+    }
+    _prefs.setStringList('nx_event_seen', seen.toList());
+    if (added > 0) store.commit();
+    return added;
   }
 
   /// 앱 시작 시: 1시간 넘게 안 갱신한 캐릭터만 조용히 갱신
@@ -181,6 +296,27 @@ class MapleService extends ChangeNotifier {
     notifyListeners();
     return s;
   }
+}
+
+/// 넥슨 이벤트 공지 하나
+class NexonEvent {
+  NexonEvent({required this.id, required this.title, required this.url, this.start, this.end, this.thumbnail = ''});
+
+  final String id;
+  final String title;
+  final String url;
+  final DateTime? start;
+  final DateTime? end;
+  final String thumbnail;
+
+  factory NexonEvent.fromJson(Map<String, dynamic> j) => NexonEvent(
+        id: '${j['notice_id'] ?? ''}',
+        title: '${j['title'] ?? ''}',
+        url: '${j['url'] ?? ''}',
+        start: DateTime.tryParse('${j['date_event_start'] ?? ''}')?.toLocal(),
+        end: DateTime.tryParse('${j['date_event_end'] ?? ''}')?.toLocal(),
+        thumbnail: '${j['thumbnail_url'] ?? ''}',
+      );
 }
 
 class MapleScope extends InheritedNotifier<MapleService> {

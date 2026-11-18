@@ -12,6 +12,7 @@ import 'character_screen.dart';
 import 'crystal_screen.dart';
 import 'game_detail_screen.dart';
 import 'settings_screen.dart';
+import 'symbol_event_sections.dart';
 
 enum _Tab { chores, crystal, growth, goals }
 
@@ -100,6 +101,7 @@ class _MapleScreenState extends State<MapleScreen> {
     final others = store.games.where((x) => x != g).toList();
 
     return [
+      const EventSection(),
       AppSection(
         title: g == null ? '일일 숙제' : '일일 숙제 · 매일 ${g.resetHour}시 초기화',
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -189,7 +191,7 @@ class _MapleScreenState extends State<MapleScreen> {
     if (c == null) {
       return const [AppSection(child: EmptyHint('캐릭터를 추가하면 레벨·전투력 변화와 장비를 볼 수 있어요'))];
     }
-    return [CharacterGrowthSection(c), CharacterGearSection(c)];
+    return [CharacterGrowthSection(c), SymbolSection(c), CharacterGearSection(c)];
   }
 
   List<Widget> _goals(BuildContext context, MapleCharacter? c) {

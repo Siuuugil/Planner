@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:game_planner/data/app_store.dart';
 import 'package:game_planner/maple/maple_service.dart';
 import 'package:game_planner/models/maple_character.dart';
+import 'package:game_planner/models/schedule.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -50,18 +51,44 @@ void main() {
       expect(store.mapleGame().chores, isEmpty);
     });
 
-    test('이벤트 끝나는 날 일정: 한 번만, 지운 건 되살리지 않음, 지난 이벤트는 안 넣음', () {
+    test('썬데이 메이플만 그날 게임 일정으로, 나머지 이벤트는 저장 안 하고 캘린더용으로만', () {
       final now = DateTime.now();
+      final sunday = DateTime(now.year, now.month, now.day + 3);
       maple.events = [
-        NexonEvent(id: '1', title: '썬데이 메이플', url: 'https://maplestory.nexon.com/1', end: now.add(const Duration(days: 3))),
-        NexonEvent(id: '2', title: '지난 이벤트', url: '', end: now.subtract(const Duration(days: 1))),
+        NexonEvent(id: '1', title: '썬데이 메이플', url: 'https://maplestory.nexon.com/1', start: sunday, end: sunday.add(const Duration(hours: 23))),
+        NexonEvent(id: '2', title: '메이플 출석 이벤트', url: '', end: now.add(const Duration(days: 10))),
       ];
       expect(maple.addEventSchedules(), 1);
       final s = store.schedules.single;
-      expect((s.id, s.title, s.allDay, s.gameId != null), ('nx-evt-1', '⏰ 이벤트 끝: 썬데이 메이플', true, true));
-      expect(maple.addEventSchedules(), 0);
+      expect((s.id, s.title, s.start, s.allDay, s.gameId != null), ('nx-evt-1', '☀️ 썬데이 메이플', sunday, true, true));
+      expect(maple.addEventSchedules(), 0); // 한 번만
+      // 나머지 이벤트는 캘린더에 끝나는 날로만
+      final end = now.add(const Duration(days: 10));
+      expect(maple.othersEndingOn(end).single.title, '메이플 출석 이벤트');
+      expect(maple.othersEndingOn(sunday), isEmpty);
       store.deleteSchedule(s);
-      expect(maple.addEventSchedules(), 0); // 지운 일정은 그대로 지운 채
+      expect(maple.addEventSchedules(), 0); // 지운 일정은 되살리지 않음
+    });
+
+    test('예전 버전이 넣은 다른 이벤트 일정은 지우고, 썬데이는 새 모양으로', () {
+      final now = DateTime.now();
+      final sunday = DateTime(now.year, now.month, now.day + 2);
+      store.schedules.addAll([
+        Schedule(id: 'nx-evt-9', title: '⏰ 이벤트 끝: 출석 이벤트', start: now, allDay: true),
+        Schedule(id: 'nx-evt-1', title: '⏰ 이벤트 끝: 썬데이 메이플', start: now, allDay: true),
+        Schedule(id: 'mine', title: '내 일정', start: now),
+      ]);
+      expect(maple.cleanupEventSchedules(), 1);
+      maple.events = [NexonEvent(id: '1', title: '썬데이 메이플', url: '', start: sunday)];
+      maple.addEventSchedules();
+      expect(store.schedules.map((s) => (s.id, s.title)).toSet(), {('nx-evt-1', '☀️ 썬데이 메이플'), ('mine', '내 일정')});
+      expect(store.schedules.firstWhere((s) => s.id == 'nx-evt-1').start, sunday);
+    });
+
+    test('썬데이 메이플 이름 알아보기', () {
+      expect(MapleService.isSundayMaple('[썬데이 메이플] 11월 3주차'), isTrue);
+      expect(MapleService.isSundayMaple('선데이메이플'), isTrue);
+      expect(MapleService.isSundayMaple('메이플 출석 이벤트'), isFalse);
     });
   });
 }

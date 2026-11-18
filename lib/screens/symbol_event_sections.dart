@@ -108,7 +108,7 @@ class SymbolSection extends StatelessWidget {
   }
 }
 
-/// 진행 중인 메이플 이벤트 (넥슨 공지) + 끝나는 날 자동 일정
+/// 썬데이 메이플 (매주 금요일 오전 10시 공지) + 그날 자동 일정
 class EventSection extends StatefulWidget {
   const EventSection({super.key});
 
@@ -145,15 +145,47 @@ class _EventSectionState extends State<EventSection> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _load(m));
     }
     final now = DateTime.now();
-    final list = m.events.where((e) => e.end == null || e.end!.isAfter(now)).take(8).toList();
+    final today = DateTime(now.year, now.month, now.day);
+    final list = m.sundays.where((e) => e.day == null || !e.day!.isBefore(today)).take(2).toList();
+    final others = m.others.where((e) => e.end == null || e.end!.isAfter(now)).toList();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _sunday(m, list, today),
+      _others(others, today),
+    ]);
+  }
+
+  /// 썬데이 메이플이 아닌 이벤트: 일정으로 저장하지 않고 여기와 캘린더(끝나는 날)에만
+  Widget _others(List<NexonEvent> list, DateTime today) => AppSection(
+        title: '메이플 이벤트',
+        icon: Icons.celebration_outlined,
+        accent: Ui.purple,
+        subtitle: '진행 중인 이벤트 · 끝나는 날이 캘린더에 표시돼요 (일정으로 저장하진 않아요)',
+        trailing: list.isEmpty ? null : CountBadge('${list.length}'),
+        child: list.isEmpty
+            ? EmptyHint(_loading ? '불러오는 중…' : '진행 중인 이벤트가 없어요')
+            : Column(children: [
+                for (final e in list)
+                  ListTile(
+                    dense: true,
+                    title: Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: e.end == null
+                        ? null
+                        : Text('${DateFormat('M/d (E)', 'ko_KR').format(e.end!)} 끝 · ${_dday(DateTime(e.end!.year, e.end!.month, e.end!.day), today)}'),
+                    trailing: Icon(Icons.open_in_new, size: 18, color: Ui.subtext),
+                    onTap: e.url.isEmpty ? null : () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
+                  ),
+              ]),
+      );
+
+  Widget _sunday(MapleService m, List<NexonEvent> list, DateTime today) {
     return AppSection(
-      title: '진행 중인 이벤트',
-      icon: Icons.celebration_outlined,
-      accent: Ui.purple,
-      subtitle: m.autoEventSchedules ? '끝나는 날이 캘린더에 자동으로 들어가요 (게임 일정)' : '넥슨 이벤트 공지',
+      title: '썬데이 메이플',
+      icon: Icons.wb_sunny_outlined,
+      accent: Ui.maple,
+      subtitle: '매주 금요일 오전 10시 공지${m.autoEventSchedules ? ' · 그날 캘린더에 자동으로 들어가요' : ''}',
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         IconButton(
-          tooltip: m.autoEventSchedules ? '자동 일정 끄기' : '끝나는 날 자동 일정 켜기',
+          tooltip: m.autoEventSchedules ? '자동 일정 끄기' : '자동 일정 켜기',
           icon: Icon(m.autoEventSchedules ? Icons.event_available : Icons.event_busy, size: 20, color: Ui.subtext),
           onPressed: () {
             m.autoEventSchedules = !m.autoEventSchedules;
@@ -171,16 +203,14 @@ class _EventSectionState extends State<EventSection> {
       child: _error != null
           ? Padding(padding: const EdgeInsets.all(14), child: Text(_error!, style: TextStyle(color: Ui.red)))
           : list.isEmpty
-              ? EmptyHint(_loading ? '불러오는 중…' : '진행 중인 이벤트가 없어요')
+              ? EmptyHint(_loading ? '불러오는 중…' : '이번 주 썬데이 메이플은 금요일 오전 10시에 나와요')
               : Column(
                   children: [
                     for (final e in list)
                       ListTile(
                         dense: true,
-                        title: Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(e.end == null
-                            ? ''
-                            : '${DateFormat('M/d (E)', 'ko_KR').format(e.end!)} 끝 · ${_dday(e.end!, now)}'),
+                        title: Text(e.day == null ? e.title : '${DateFormat('M/d (E)', 'ko_KR').format(e.day!)} · ${_dday(e.day!, today)}'),
+                        subtitle: Text(e.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                         trailing: Icon(Icons.open_in_new, size: 18, color: Ui.subtext),
                         onTap: e.url.isEmpty ? null : () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
                       ),
@@ -189,8 +219,9 @@ class _EventSectionState extends State<EventSection> {
     );
   }
 
-  static String _dday(DateTime end, DateTime now) {
-    final d = DateTime(end.year, end.month, end.day).difference(DateTime(now.year, now.month, now.day)).inDays;
-    return d <= 0 ? '오늘 끝' : 'D-$d';
+  static String _dday(DateTime day, DateTime today) {
+    final d = day.difference(today).inDays;
+    return d <= 0 ? '오늘' : 'D-$d';
   }
+
 }

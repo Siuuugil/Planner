@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/app_store.dart' show AppStore;
 import '../data/store_scope.dart';
+import '../maple/maple_service.dart';
 import '../models/schedule.dart';
 import '../ui/kit.dart';
 import '../widgets/schedule_widgets.dart';
@@ -22,14 +24,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selected = DateTime.now();
   CalendarFormat _format = CalendarFormat.month;
 
-  List<Object> _events(AppStore store, DateTime day) => [
+  List<Object> _events(AppStore store, MapleService? maple, DateTime day) => [
         ...store.schedulesOn(day).where((s) => !store.hideGames || s.gameId == null),
         ...store.tasks.where((t) => t.due != null && isSameDay(t.due, day)),
+        if (!store.hideGames && maple != null) ...maple.othersEndingOn(day),
       ];
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
+    final maple = MapleScope.of(context);
+    final mapleEvents = store.hideGames || maple == null ? <NexonEvent>[] : maple.othersEndingOn(_selected);
     final all = store.schedulesOn(_selected);
     final schedules = all.where((s) => s.gameId == null).toList();
     final gameSchedules = store.hideGames ? <Schedule>[] : all.where((s) => s.gameId != null).toList();
@@ -62,7 +67,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 CalendarFormat.week: '주',
               },
               selectedDayPredicate: (d) => isSameDay(d, _selected),
-              eventLoader: (d) => _events(store, d),
+              eventLoader: (d) => _events(store, maple, d),
               onDaySelected: (selected, focused) => setState(() {
                 _selected = selected;
                 _focused = focused;
@@ -73,7 +78,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 // 점 색: 일상·업무 주황, 게임 보라
                 markerBuilder: (context, day, events) {
                   if (events.isEmpty) return null;
-                  final dots = events.take(3).map((e) => e is Schedule && e.gameId != null ? Ui.purple : Ui.accent);
+                  // 점 색: 일상·업무 주황, 게임 보라, 메이플 이벤트 갈색
+                  final dots = events.take(3).map((e) => e is NexonEvent
+                      ? Ui.maple
+                      : e is Schedule && e.gameId != null
+                          ? Ui.purple
+                          : Ui.accent);
                   return Positioned(
                     bottom: 5,
                     child: Row(
@@ -135,6 +145,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
               accent: Ui.purple,
               trailing: CountBadge('${gameSchedules.length}'),
               child: Column(children: gameSchedules.map((s) => ScheduleTile(schedule: s)).toList()),
+            ),
+          if (mapleEvents.isNotEmpty)
+            AppSection(
+              title: '메이플 이벤트 · 오늘 끝나요',
+              accent: Ui.maple,
+              trailing: CountBadge('${mapleEvents.length}'),
+              child: Column(children: [
+                for (final e in mapleEvents)
+                  ListTile(
+                    dense: true,
+                    leading: Icon(Icons.celebration_outlined, color: Ui.maple),
+                    title: Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: e.end == null ? null : Text('${DateFormat('HH:mm').format(e.end!)} 종료'),
+                    trailing: Icon(Icons.open_in_new, size: 18, color: Ui.subtext),
+                    onTap: e.url.isEmpty ? null : () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
+                  ),
+              ]),
             ),
         ],
       ),

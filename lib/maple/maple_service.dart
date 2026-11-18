@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +23,13 @@ class MapleLookup {
 class MapleService extends ChangeNotifier {
   MapleService(this.store, this._prefs, {this.proxy}) {
     _key = _prefs.getString(_prefKey) ?? '';
+    // 지난번에 받은 이벤트 공지 (캘린더가 바로 보여 줄 수 있게)
+    try {
+      final raw = _prefs.getString('nx_events_cache');
+      if (raw != null) {
+        events = [for (final e in jsonDecode(raw) as List) NexonEvent.fromJson((e as Map).cast<String, dynamic>())];
+      }
+    } catch (_) {}
   }
 
   static const _prefKey = 'nexon_api_key';
@@ -179,47 +188,91 @@ class MapleService extends ChangeNotifier {
     store.commit();
   }
 
-  // ── 이벤트 공지 ──
+  // ── 썬데이 메이플 (이벤트 공지 중 이것만) ──
 
-  /// 진행 중인 이벤트 (6시간 캐시)
+  /// 썬데이 메이플 공지 (매주 금요일 오전 10시에 올라옴)
+  static bool isSundayMaple(String title) {
+    final t = title.replaceAll(' ', '');
+    return t.contains('썬데이메이플') || t.contains('선데이메이플');
+  }
+
+  /// 진행 중인 이벤트 공지 전부 (끝나는 날 순). 썬데이 메이플은 [sundays], 나머지는 [others]
   List<NexonEvent> events = [];
   DateTime? _eventsAt;
 
-  /// 이벤트 끝나는 날을 캘린더에 자동으로 넣기
+  List<NexonEvent> get sundays => events.where((e) => isSundayMaple(e.title)).toList();
+
+  /// 썬데이 메이플이 아닌 이벤트 — 일정으로 저장하지 않고 '메이플 이벤트' 칸과 캘린더에만 보여 준다
+  List<NexonEvent> get others => events.where((e) => !isSundayMaple(e.title)).toList();
+
+  /// [day]에 끝나는 이벤트 (캘린더용, 썬데이 메이플 제외)
+  List<NexonEvent> othersEndingOn(DateTime day) => [
+        for (final e in others)
+          if (e.end != null && e.end!.year == day.year && e.end!.month == day.month && e.end!.day == day.day) e,
+      ];
+
+  /// 썬데이 메이플 날을 캘린더에 자동으로 넣기
   bool get autoEventSchedules => _prefs.getBool('auto_event_schedules') ?? true;
   set autoEventSchedules(bool v) {
     _prefs.setBool('auto_event_schedules', v);
     notifyListeners();
   }
 
+  /// 공지를 불러온다 (썬데이 메이플은 그날 일정으로, 나머지는 보여 주기만). 금~일은 1시간, 그 밖엔 6시간 캐시
   Future<List<NexonEvent>> loadEvents({bool force = false}) async {
-    if (!force && _eventsAt != null && DateTime.now().difference(_eventsAt!) < const Duration(hours: 6)) return events;
+    final now = DateTime.now();
+    final ttl = now.weekday >= DateTime.friday ? const Duration(hours: 1) : const Duration(hours: 6);
+    if (!force && _eventsAt != null && now.difference(_eventsAt!) < ttl) return events;
     final j = await _api().noticeEvents();
     events = [
       for (final e in (j['event_notice'] as List? ?? [])) if (e is Map) NexonEvent.fromJson(e.cast<String, dynamic>()),
     ]..sort((a, b) => (a.end ?? DateTime(2100)).compareTo(b.end ?? DateTime(2100)));
-    _eventsAt = DateTime.now();
+    _eventsAt = now;
+    _prefs.setString('nx_events_cache', jsonEncode(events.map((e) => e.toJson()).toList()));
+    cleanupEventSchedules();
     if (autoEventSchedules) addEventSchedules();
     notifyListeners();
     return events;
   }
 
-  /// 이벤트 끝나는 날에 종일 일정 '⏰ 이벤트 끝: …' (id 가 공지 번호로 정해져 있어 여러 기기에서도 하나).
-  /// 한 번 넣었거나 이미 본 공지는 다시 넣지 않는다 (지운 일정이 되살아나지 않게). 넣은 개수
+  /// 예전 버전이 넣은 다른 이벤트 일정(id `nx-evt-…`, 썬데이 메이플 아님)을 지운다. 지운 개수
+  int cleanupEventSchedules() {
+    final before = store.schedules.length;
+    store.schedules.removeWhere((s) => s.id.startsWith('nx-evt-') && !isSundayMaple(s.title));
+    final removed = before - store.schedules.length;
+    if (removed > 0) store.commit();
+    return removed;
+  }
+
+  /// 썬데이 메이플 날(일요일)에 종일 일정 '☀️ 썬데이 메이플' (id 가 공지 번호로 정해져 있어 여러 기기에서도 하나).
+  /// 한 번 넣은 공지는 다시 넣지 않는다 (지운 일정이 되살아나지 않게). 넣은 개수
   int addEventSchedules() {
     final seen = (_prefs.getStringList('nx_event_seen') ?? []).toSet();
-    final now = DateTime.now();
+    final today = DateTime.now();
+    final t0 = DateTime(today.year, today.month, today.day);
     var added = 0;
-    for (final e in events) {
+    for (final e in sundays) {
+      final day = e.day;
+      if (day == null || day.isBefore(t0) || day.isAfter(t0.add(const Duration(days: 30)))) continue;
       final id = 'nx-evt-${e.id}';
-      if (e.end == null || e.end!.isBefore(now) || e.end!.isAfter(now.add(const Duration(days: 90)))) continue;
+      // 예전 버전이 '⏰ 이벤트 끝: 썬데이…'으로 넣은 건 새 모양으로 고친다
+      final old = store.schedules.where((s) => s.id == id).firstOrNull;
+      if (old != null) {
+        if (old.title != '☀️ 썬데이 메이플') {
+          old
+            ..title = '☀️ 썬데이 메이플'
+            ..start = day;
+          added++;
+        }
+        seen.add(id);
+        continue;
+      }
       if (seen.contains(id)) continue;
       seen.add(id);
-      if (store.schedules.any((s) => s.id == id)) continue;
       store.schedules.add(Schedule(
         id: id,
-        title: '⏰ 이벤트 끝: ${e.title}',
-        start: DateTime(e.end!.year, e.end!.month, e.end!.day),
+        title: '☀️ 썬데이 메이플',
+        start: day,
         allDay: true,
         memo: e.url,
         gameId: store.mapleGame().id,
@@ -308,6 +361,21 @@ class NexonEvent {
   final DateTime? start;
   final DateTime? end;
   final String thumbnail;
+
+  /// 이벤트 날 (썬데이 메이플은 시작일 = 일요일)
+  DateTime? get day {
+    final d = start ?? end;
+    return d == null ? null : DateTime(d.year, d.month, d.day);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'notice_id': id,
+        'title': title,
+        'url': url,
+        if (start != null) 'date_event_start': start!.toIso8601String(),
+        if (end != null) 'date_event_end': end!.toIso8601String(),
+        'thumbnail_url': thumbnail,
+      };
 
   factory NexonEvent.fromJson(Map<String, dynamic> j) => NexonEvent(
         id: '${j['notice_id'] ?? ''}',

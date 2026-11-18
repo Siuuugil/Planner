@@ -93,6 +93,7 @@ Future<void> main(List<String> args) async {
   runApp(MyPlannerApp(
       store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice, desktop: desktop, autopilot: autopilot, theme: theme));
   maple.refreshStale();
+  if (maple.hasKey) unawaited(maple.loadEvents().then((_) {}, onError: (_) {}));
 }
 
 class MyPlannerApp extends StatelessWidget {

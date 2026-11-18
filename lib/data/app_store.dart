@@ -376,6 +376,32 @@ class AppStore extends ChangeNotifier {
   /// 📥 수집: 떠오른 생각·공유받은 링크를 `inbox` 행으로 올린다.
   /// 처리는 PC 마을이 하고, 앱은 최근 수집 목록([captures])으로 상태만 보여준다.
   /// 비어 있으면 null.
+  /// 🔔 PC 마을 알림 허브로 알림 한 건 보내기 (`event` 행). PC 마을이 휴대폰 푸시 + 디스코드 DM으로 보내고 지운다.
+  /// 앱은 쓰기만 한다 (`_known`에 안 넣어서 `_diff`가 삭제로 오해하지 않음, applyRemote 는 event 를 무시).
+  SyncRow? addEvent(String title, String body, {String url = '/', String source = 'planner'}) {
+    final t = title.trim();
+    if (t.isEmpty) return null;
+    final now = _clock().toUtc();
+    final row = SyncRow(
+      id: newId(),
+      kind: 'event',
+      data: {
+        'title': t.length > 120 ? t.substring(0, 120) : t,
+        'body': body.length > 1000 ? body.substring(0, 1000) : body,
+        'url': url,
+        'source': source,
+        'at': now.toIso8601String(),
+      },
+      deleted: false,
+      updatedAt: now,
+    );
+    pending[row.id] = row;
+    _save();
+    notifyListeners();
+    onLocalChange?.call();
+    return row;
+  }
+
   SyncRow? addCapture(String text, {String source = 'planner'}) {
     final t = text.trim();
     if (t.isEmpty) return null;

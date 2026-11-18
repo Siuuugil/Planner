@@ -391,6 +391,14 @@ class AiService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 폰·웹 질문에 답하면 PC 마을로 휴대폰 푸시·디스코드 DM도 (앱을 닫아 둔 사이 답이 왔을 때)
+  bool get notifyRemoteAnswer => _prefs.getBool('notify_remote_answer') ?? false;
+
+  set notifyRemoteAnswer(bool v) {
+    _prefs.setBool('notify_remote_answer', v);
+    notifyListeners();
+  }
+
   /// 폰·웹에서 보낸 대화에 이 PC가 답할지 (기본 켜짐)
   bool get serveRemote => _prefs.getBool(_serveKey) ?? true;
 
@@ -462,6 +470,7 @@ class AiService extends ChangeNotifier {
         store.saveNote(await _withVoice(AiNote(
             id: req.id, type: 'chat', title: req.title, body: ans.body, createdAt: req.createdAt,
             actions: ans.actions, emotion: ans.emotion, by: me)));
+        if (notifyRemoteAnswer) store.addEvent('💬 ${req.title}', ans.body);
       } on ClaudeCliException catch (e) {
         store.saveNote(AiNote(
             id: req.id, type: 'chat', title: req.title, body: 'PC에서 답하지 못했어요: ${e.message}',

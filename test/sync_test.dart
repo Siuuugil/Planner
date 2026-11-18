@@ -306,4 +306,19 @@ void main() {
     expect(up['source'], 'todo-app');
     expect((up['steps'] as List).single, {'title': '자료', 'done': true});
   });
+
+  test('event 행은 올리기만 하고, 서버에서 온 event 는 무시한다', () async {
+    final store = await open();
+    final row = store.addEvent('☀️ 오늘 브리핑', '보고서 먼저')!;
+    expect(store.pending[row.id]!.kind, 'event');
+    expect(store.pending[row.id]!.data!['source'], 'planner');
+    store.commit();
+    expect(store.pending.values.where((r) => r.deleted), isEmpty); // 삭제로 오해하지 않음
+    store.applyRemote([
+      SyncRow(id: 'e2', kind: 'event', data: {'title': '마을 알림', 'body': ''}, deleted: false, updatedAt: now),
+    ]);
+    expect(store.schedules, isEmpty);
+    expect(store.tasks, isEmpty);
+    expect(store.pending.containsKey('e2'), isFalse);
+  });
 }

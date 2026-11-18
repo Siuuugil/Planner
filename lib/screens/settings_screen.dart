@@ -6,6 +6,7 @@ import '../config.dart';
 import '../data/store_scope.dart';
 import '../desktop/desktop_shell.dart';
 import '../ai/ai_service.dart';
+import '../ai/autopilot.dart';
 import '../ai/claude_cli.dart';
 import '../ai/my_voice.dart';
 import '../ai/voice.dart';
@@ -75,6 +76,7 @@ class SettingsScreen extends StatelessWidget {
           if (maple != null) _NexonKeyPanel(maple),
           if (AiScope.of(context) case final ai? when ai.supported) ...[
             _AiPanel(ai),
+            if (AutopilotScope.of(context) case final ap?) _AutopilotPanel(ap),
             if (VoiceScope.myVoiceOf(context) case final mv? when MyVoice.supported) _MyVoicePanel(ai, mv),
           ],
           Padding(
@@ -353,6 +355,13 @@ class _AiPanelState extends State<_AiPanel> {
             value: widget.ai.serveRemote,
             onChanged: (v) => setState(() => widget.ai.serveRemote = v),
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('답하면 휴대폰·디스코드로도 알림 (PC 마을)'),
+            subtitle: const Text('폰 앱을 닫아 둔 사이 답이 와도 알 수 있게'),
+            value: widget.ai.notifyRemoteAnswer,
+            onChanged: widget.ai.serveRemote ? (v) => setState(() => widget.ai.notifyRemoteAnswer = v) : null,
+          ),
           if (_status != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -488,6 +497,93 @@ class _MyVoicePanelState extends State<_MyVoicePanel> {
               child: Text(_status!, style: const TextStyle(fontSize: 13)),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// AI 자동 실행: 아침 브리핑·월요일 주간 리포트 → PC 마을로 휴대폰·디스코드 알림
+class _AutopilotPanel extends StatefulWidget {
+  const _AutopilotPanel(this.ap);
+
+  final Autopilot ap;
+
+  @override
+  State<_AutopilotPanel> createState() => _AutopilotPanelState();
+}
+
+class _AutopilotPanelState extends State<_AutopilotPanel> {
+  bool _running = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ap = widget.ap;
+    return AppSection(
+      title: 'AI 자동 실행',
+      icon: Icons.wb_sunny_outlined,
+      accent: Ui.accent,
+      subtitle: '이 PC가 켜져 있으면 정한 시각에 오늘 계획을 만들고, PC 마을을 거쳐 휴대폰 푸시·디스코드 DM으로 알려 줘요. '
+          'PC가 여러 대 켜져 있어도 하루 한 번만 해요.',
+      child: Column(
+        children: withDividers([
+          SwitchListTile(
+            title: const Text('아침 브리핑'),
+            subtitle: Text('${ap.timeLabel} 이후 처음 켜져 있을 때 (오후 6시까지)'),
+            value: ap.briefing,
+            onChanged: (v) => setState(() => ap.briefing = v),
+          ),
+          ListTile(
+            enabled: ap.briefing,
+            title: const Text('브리핑 시각'),
+            trailing: Text(ap.timeLabel, style: const TextStyle(fontSize: 16)),
+            onTap: !ap.briefing
+                ? null
+                : () async {
+                    final t = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay(hour: ap.minuteOfDay ~/ 60, minute: ap.minuteOfDay % 60),
+                    );
+                    if (t != null) setState(() => ap.minuteOfDay = t.hour * 60 + t.minute);
+                  },
+          ),
+          SwitchListTile(
+            title: const Text('평일만'),
+            value: ap.weekdaysOnly,
+            onChanged: ap.briefing ? (v) => setState(() => ap.weekdaysOnly = v) : null,
+          ),
+          SwitchListTile(
+            title: const Text('월요일엔 주간 리포트도'),
+            value: ap.mondayReport,
+            onChanged: ap.briefing ? (v) => setState(() => ap.mondayReport = v) : null,
+          ),
+          SwitchListTile(
+            title: const Text('휴대폰·디스코드로 보내기 (PC 마을)'),
+            subtitle: const Text('PC 마을이 켜져 있어야 와요. 끄면 앱 안에만 남아요'),
+            value: ap.sendEvent,
+            onChanged: (v) => setState(() => ap.sendEvent = v),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(ap.lastResult ?? '아직 실행 기록이 없어요',
+                      style: const TextStyle(color: Ui.subtext, fontSize: 12.5)),
+                ),
+                OutlinedButton(
+                  onPressed: _running
+                      ? null
+                      : () async {
+                          setState(() => _running = true);
+                          await ap.run(DateTime.now());
+                          if (mounted) setState(() => _running = false);
+                        },
+                  child: Text(_running ? '만드는 중…' : '지금 해 보기'),
+                ),
+              ],
+            ),
+          ),
+        ]),
       ),
     );
   }

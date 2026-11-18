@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ai/ai_service.dart';
+import 'ai/autopilot.dart';
 import 'ai/my_voice.dart';
 import 'ai/voice.dart';
 import 'config.dart';
@@ -76,16 +77,18 @@ Future<void> main(List<String> args) async {
             }
           },
   );
+  // PC 앱: 아침 브리핑·월요일 리포트 자동 실행 (설정에서 켬)
+  final autopilot = ai.supported ? (await Autopilot.open(store, ai)..start()) : null;
   final voice = await VoiceService.open()
     ..resolveAudio = (path) async =>
         supabase.auth.currentUser == null ? null : supabase.storage.from(bucket).createSignedUrl(path, 600);
   runApp(MyPlannerApp(
-      store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice, desktop: desktop));
+      store: store, sync: sync, notify: notify, maple: maple, ai: ai, voice: voice, myVoice: myVoice, desktop: desktop, autopilot: autopilot));
   maple.refreshStale();
 }
 
 class MyPlannerApp extends StatelessWidget {
-  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice, this.myVoice, this.desktop});
+  const MyPlannerApp({super.key, required this.store, this.sync, this.notify, this.maple, this.ai, this.voice, this.myVoice, this.desktop, this.autopilot});
 
   final AppStore store;
   final SyncService? sync;
@@ -95,6 +98,7 @@ class MyPlannerApp extends StatelessWidget {
   final VoiceService? voice;
   final MyVoice? myVoice;
   final DesktopShell? desktop;
+  final Autopilot? autopilot;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +123,7 @@ class MyPlannerApp extends StatelessWidget {
     if (notify != null) root = NotifyScope(notify: notify!, child: root);
     if (maple != null) root = MapleScope(maple: maple!, child: root);
     if (ai != null) root = AiScope(ai: ai!, child: root);
+    if (autopilot != null) root = AutopilotScope(autopilot: autopilot!, child: root);
     if (voice != null) root = VoiceScope(voice: voice!, myVoice: myVoice, child: root);
     if (sync != null) root = SyncScope(sync: sync!, child: root);
     if (desktop != null) root = DesktopScope(shell: desktop!, child: root);

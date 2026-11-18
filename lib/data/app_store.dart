@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/ai_note.dart';
+import '../models/capture.dart';
 import '../models/game.dart';
 import '../models/maple_character.dart';
 import '../models/schedule.dart';
@@ -44,6 +45,12 @@ class AppStore extends ChangeNotifier {
 
   /// 숙제·보스 완료 체크 (id → 기록)
   final Map<String, DoneMark> marks = {};
+
+  /// 📥 최근 수집 (id → 수집). 보여주기용이라 [_known]에 넣지 않고 따로 저장한다.
+  final Map<String, Capture> captures = {};
+
+  /// 앱에 남겨 둘 최근 수집 개수
+  static const maxCaptures = 50;
 
   /// AI가 만든 계획·리포트·답변 (최근 것이 앞)
   final List<AiNote> notes = [];
@@ -87,6 +94,10 @@ class AppStore extends ChangeNotifier {
       characters.addAll((j['characters'] as List? ?? [])
           .map((e) => MapleCharacter.fromJson(e as Map<String, dynamic>)));
       notes.addAll((j['notes'] as List? ?? []).map((e) => AiNote.fromJson(e as Map<String, dynamic>)));
+      for (final e in (j['captures'] as List? ?? [])) {
+        final c = Capture.fromJson(e as Map<String, dynamic>);
+        captures[c.id] = c;
+      }
       for (final e in (j['marks'] as List? ?? [])) {
         final m = DoneMark.fromJson(e as Map<String, dynamic>);
         marks[m.id] = m;
@@ -222,6 +233,7 @@ class AppStore extends ChangeNotifier {
         'characters': characters.map((c) => c.toJson()).toList(),
         'marks': marks.values.map((m) => m.toJson()).toList(),
         'notes': notes.map((n) => n.toJson()).toList(),
+        'captures': captures.values.map((c) => c.toJson()).toList(),
       }),
     );
     _prefs.setString(
@@ -248,7 +260,11 @@ class AppStore extends ChangeNotifier {
   void applyRemote(Iterable<SyncRow> rows) {
     var changed = false;
     for (final r in rows) {
-      // 이 버전이 모르는 종류(event·inbox 등 다른 앱이 쓰는 행)는 건드리지 않는다.
+      if (r.kind == 'inbox') {
+        changed |= _applyCapture(r);
+        continue;
+      }
+      // 이 버전이 모르는 종류(event 등 다른 앱이 쓰는 행)는 건드리지 않는다.
       if (!const {'schedule', 'game', 'task', 'maple', 'mark', 'ai'}.contains(r.kind)) continue;
       final local = _stamps[r.id];
       if (local != null && !r.updatedAt.isAfter(local)) continue;
@@ -321,8 +337,44 @@ class AppStore extends ChangeNotifier {
     }
   }
 
+  /// 서버의 `inbox` 행 → 최근 수집 목록 (PC 마을이 처리하면 done). 바뀌었으면 true.
+  bool _applyCapture(SyncRow r) {
+    final old = captures[r.id];
+    if (old != null && !r.updatedAt.isAfter(old.updatedAt)) return false;
+    final d = r.data;
+    final text = d?['text'] is String ? d!['text'] as String : old?.text;
+    if (text == null) return false; // 내용 없는 처리 표시만 온 경우 (모르는 수집)
+    final at = DateTime.tryParse(d?['at'] as String? ?? '')?.toUtc() ?? old?.at ?? r.updatedAt;
+    // 목록이 꽉 찼고 가장 오래된 것보다도 오래됐으면 넣지 않는다 (매 동기화마다 넣었다 빼기 방지)
+    if (old == null && captures.length >= maxCaptures && !captures.values.any((c) => c.at.isBefore(at))) {
+      return false;
+    }
+    captures[r.id] = Capture(
+      id: r.id,
+      text: text,
+      source: d?['source'] as String? ?? old?.source ?? '',
+      at: at,
+      done: r.deleted,
+      updatedAt: r.updatedAt,
+    );
+    _trimCaptures();
+    return true;
+  }
+
+  void _trimCaptures() {
+    if (captures.length <= maxCaptures) return;
+    final old = recentCaptures.skip(maxCaptures).map((c) => c.id).toList();
+    old.forEach(captures.remove);
+  }
+
+  /// 최근 수집 (최근 것이 앞)
+  List<Capture> get recentCaptures => captures.values.toList()..sort((a, b) => b.at.compareTo(a.at));
+
+  /// 아직 서버에 못 올린 수집인지
+  bool isCaptureUploading(Capture c) => pending.containsKey(c.id);
+
   /// 📥 수집: 떠오른 생각·공유받은 링크를 `inbox` 행으로 올린다.
-  /// 앱에는 목록으로 남기지 않고(PC 마을이 가져가서 처리) 대기열에만 넣는다.
+  /// 처리는 PC 마을이 하고, 앱은 최근 수집 목록([captures])으로 상태만 보여준다.
   /// 비어 있으면 null.
   SyncRow? addCapture(String text, {String source = 'planner'}) {
     final t = text.trim();
@@ -337,7 +389,10 @@ class AppStore extends ChangeNotifier {
     );
     // _known/_stamps에는 넣지 않는다: 로컬 상태가 아니라서 _diff가 삭제로 오해하면 안 됨
     pending[row.id] = row;
+    captures[row.id] = Capture(id: row.id, text: t, source: source, at: now, done: false, updatedAt: now);
+    _trimCaptures();
     _save();
+    notifyListeners();
     onLocalChange?.call();
     return row;
   }
@@ -363,6 +418,7 @@ class AppStore extends ChangeNotifier {
     characters.clear();
     marks.clear();
     notes.clear();
+    captures.clear();
     _known.clear();
     _stamps.clear();
     pending.clear();

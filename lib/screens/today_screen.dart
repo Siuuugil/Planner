@@ -14,6 +14,7 @@ import '../widgets/schedule_widgets.dart';
 import '../widgets/task_widgets.dart';
 import 'account_screen.dart';
 import 'ai_screen.dart';
+import 'capture_screen.dart';
 import 'settings_screen.dart';
 
 /// 홈: 오늘 할 일(일정·마감 할 일·숙제)을 한 목록으로 + 결정석·캐릭터 위젯
@@ -88,6 +89,7 @@ class TodayScreen extends StatelessWidget {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-today',
         tooltip: '추가',
         onPressed: () => _showAddMenu(context),
         child: const Icon(Icons.add, size: 28),
@@ -124,9 +126,12 @@ class TodayScreen extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        tooltip: '📥 수집',
+                        tooltip: '📥 수집함',
                         icon: const Icon(Icons.move_to_inbox_outlined),
-                        onPressed: () => showCaptureDialog(context, store),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CaptureScreen()),
+                        ),
                       ),
                       IconButton(
                         tooltip: 'AI 비서',

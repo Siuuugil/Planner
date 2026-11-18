@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_planner/data/app_store.dart';
 import 'package:game_planner/main.dart';
@@ -91,5 +92,29 @@ void main() {
     expect(find.text('게임'), findsNothing);
     expect(find.text('메이플'), findsNothing);
     expect(store.hideGames, isTrue);
+  });
+
+  testWidgets('📥 수집함: 넣으면 최근 수집에 대기 상태로 보인다', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await initializeDateFormatting('ko_KR');
+    final store = await AppStore.open();
+    await tester.pumpWidget(MyPlannerApp(store: store));
+
+    await tester.tap(find.byTooltip('📥 수집함'));
+    await tester.pumpAndSettle();
+    expect(find.text('아직 수집한 게 없어요.'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('captureScreenField')), '회의록 정리 https://example.com');
+    await tester.tap(find.text('넣기').last);
+    await tester.pump();
+    expect(find.text('회의록 정리 https://example.com'), findsOneWidget);
+    expect(find.textContaining('올리는 중'), findsOneWidget);
+    expect(store.pending.values.single.kind, 'inbox');
+
+    store.markPushed(store.pending.values.toList());
+    store.notifyListeners();
+    await tester.pump();
+    expect(find.textContaining('PC 마을 대기'), findsOneWidget);
+    await tester.pumpAndSettle();
   });
 }

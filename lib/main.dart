@@ -81,6 +81,22 @@ Future<void> main(List<String> args) async {
             }
           },
   );
+  // PC: 켠 지 1분 뒤, 어느 대화에도 안 쓰이는 음성 파일 정리 (다른 기기에서 지운 대화의 음성 등)
+  if (MyVoice.supported) {
+    Timer(const Duration(minutes: 1), () async {
+      final uid = supabase.auth.currentUser?.id;
+      if (uid == null) return;
+      try {
+        final files = await supabase.storage.from(bucket).list(path: uid);
+        final keep = {for (final n in store.notes) if (n.audio != null) n.audio!};
+        final orphans = [
+          for (final f in files)
+            if (!f.name.startsWith('sample_') && !keep.contains('$uid/${f.name}')) '$uid/${f.name}',
+        ];
+        if (orphans.isNotEmpty) await supabase.storage.from(bucket).remove(orphans);
+      } catch (_) {}
+    });
+  }
   // PC 앱: 아침 브리핑·월요일 리포트 자동 실행 (설정에서 켬)
   final autopilot = ai.supported ? (await Autopilot.open(store, ai)..start()) : null;
   final theme = await ThemeController.open();

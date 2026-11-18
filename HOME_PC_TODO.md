@@ -70,7 +70,7 @@ from public.items where kind = 'inbox' order by updated_at desc limit 10;
 
 ### 💬 대화 지우기
 - [ ] AI 대화 말풍선 우클릭(PC)·길게 누르기(폰) → "내 말 삭제"·"AI 답 삭제"·복사
-- [ ] Supabase Storage `voice` 버킷의 예전 음성 파일 4개가 그대로 남아 있는지 (계속 쓸 파일, 지우지 않음)
+- [ ] PC 앱을 켜고 1분 뒤 Supabase Storage `voice` 버킷의 예전 음성 파일 4개가 지워졌는지 (예전 대화는 2026-11-18에 DB에서 지움)
 
 ### 🌙 다크 모드 · 💾 백업
 - [ ] 설정 → 화면 → 테마 어둡게/밝게/시스템 (PC·폰·웹)

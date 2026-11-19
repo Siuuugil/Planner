@@ -46,12 +46,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final chats = StoreScope.of(context).notes.where((n) => n.type == 'chat');
     if (!_primed) {
       _primed = true;
-      _heard.addAll(chats.where((c) => !c.waiting).map((c) => c.id));
+      _heard.addAll(chats.where((c) => !c.waiting && !c.voicing).map((c) => c.id));
       return;
     }
     // 새로 도착한 답 → 읽어주고, 핸즈프리면 다시 듣기
     for (final c in chats) {
-      if (c.waiting || c.status == 'error' || c.body.isEmpty || !_heard.add(c.id)) continue;
+      if (c.waiting || c.voicing || c.status == 'error' || c.body.isEmpty || !_heard.add(c.id)) continue;
       _toBottom();
       _speakThenListen(c);
     }

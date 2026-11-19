@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -61,6 +62,18 @@ void main() {
       expect(n.audio, 'u/chat:9.mp3');
       expect(n.emotion, 'excited');
       expect(calls, ['chat:9|보스 다 잡았네요!|excited']);
+    });
+
+    test('글 답이 먼저 보이고(voice), 음성이 다 되면 붙는다', () async {
+      final gate = Completer<String?>();
+      final (store, ai, _) = await setup((id, _, _) => gate.future);
+      final note = await ai.chat('안녕');
+      expect(store.notes.single.voicing, isTrue);
+      expect(store.notes.single.body, '보스 다 잡았네요!');
+      gate.complete('u/${note.id}.mp3');
+      await pumpEventQueue();
+      expect(store.notes.single.status, isNull);
+      expect(store.notes.single.audio, 'u/${note.id}.mp3');
     });
 
     test('음성 만들기가 실패해도 글 답은 온다, 지우면 파일도 지운다', () async {

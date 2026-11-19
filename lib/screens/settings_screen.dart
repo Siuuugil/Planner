@@ -362,6 +362,20 @@ class _AiPanelState extends State<_AiPanel> {
           const SizedBox(height: 10),
           OutlinedButton(onPressed: _check, child: const Text('연결 확인')),
           const SizedBox(height: 14),
+          const Text('대화 속도', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: [for (final e in AiService.chatModels.entries) ButtonSegment(value: e.key, label: Text(e.value))],
+            selected: {widget.ai.chatModel},
+            onSelectionChanged: (s) => setState(() => widget.ai.chatModel = s.first),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('빠르게: Haiku (몇 초) · 보통: Sonnet · 똑똑하게: Claude Code 기본 모델 (느릴 수 있음). 대화에만 적용, 계획·리포트는 그대로',
+                style: TextStyle(color: Ui.subtext, fontSize: 12.5)),
+          ),
+          const SizedBox(height: 14),
           const Text('대화 말투', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           SegmentedButton<String>(

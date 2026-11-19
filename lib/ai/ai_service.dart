@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -479,7 +481,7 @@ class AiService extends ChangeNotifier {
         ready = await voiceReady?.call() ?? false;
       } catch (_) {}
       if (!ready) {
-        await Future<void>.delayed(claimWait * 2);
+        await Future<void>.delayed(claimWait);
         if (_nextRequest()?.id != first.id) return; // 그새 다른 PC가 잡음
       }
       final me = deviceId;
@@ -492,11 +494,11 @@ class AiService extends ChangeNotifier {
 
       final req = first;
       try {
-        final json = await _ask('폰·웹 대화', _chatPromptFor(req.title, excludeId: req.id));
+        final json = await _ask('폰·웹 대화', _chatPromptFor(req.title, excludeId: req.id), model: chatModel);
         final ans = parseChat(json, req.title, req.createdAt);
-        store.saveNote(await _withVoice(AiNote(
+        await _saveAnswer(AiNote(
             id: req.id, type: 'chat', title: req.title, body: ans.body, createdAt: req.createdAt,
-            actions: ans.actions, emotion: ans.emotion, by: me)));
+            actions: ans.actions, emotion: ans.emotion, by: me));
         if (notifyRemoteAnswer) store.addEvent('💬 ${req.title}', ans.body);
       } on ClaudeCliException catch (e) {
         store.saveNote(AiNote(
@@ -515,12 +517,22 @@ class AiService extends ChangeNotifier {
     store.saveNote(AiNote(id: 'chat:${now.microsecondsSinceEpoch}', type: 'chat', title: message, body: '', createdAt: now, status: 'pending'));
   }
 
-  Future<Map<String, dynamic>> _ask(String what, String prompt) async {
+  /// 대화에 쓸 모델 (빠른 답: haiku · 보통: sonnet · '' = Claude Code 기본 설정)
+  static const chatModels = {'haiku': '빠르게', 'sonnet': '보통', '': '똑똑하게'};
+
+  String get chatModel => _prefs.getString('chat_model') ?? 'sonnet';
+
+  set chatModel(String v) {
+    _prefs.setString('chat_model', v);
+    notifyListeners();
+  }
+
+  Future<Map<String, dynamic>> _ask(String what, String prompt, {String? model}) async {
     if (running != null) throw ClaudeCliException('AI가 "$running" 작업 중이에요. 끝나면 다시 해 주세요.');
     running = what;
     notifyListeners();
     try {
-      return await (askOverride?.call(prompt) ?? ClaudeCli.ask(prompt, executable: executable));
+      return await (askOverride?.call(prompt) ?? ClaudeCli.ask(prompt, executable: executable, model: model));
     } finally {
       running = null;
       notifyListeners();
@@ -573,10 +585,28 @@ class AiService extends ChangeNotifier {
   /// 대화 한 번 (최근 6번의 대화를 함께 보낸다)
   Future<AiNote> chat(String message) async {
     final now = DateTime.now();
-    final json = await _ask('대화', _chatPromptFor(message));
-    final note = await _withVoice(parseChat(json, message, now));
-    store.saveNote(note);
+    final json = await _ask('대화', _chatPromptFor(message), model: chatModel);
+    final note = parseChat(json, message, now);
+    unawaited(_saveAnswer(note));
     return note;
+  }
+
+  /// 답 저장: 글부터 바로 보여 주고(status 'voice'), 내 목소리 음성은 다 만들어지면 붙인다.
+  /// 내 목소리를 안 쓰면 그냥 저장. 음성을 만드는 사이 대화를 지웠으면 되살리지 않는다.
+  Future<void> _saveAnswer(AiNote note) async {
+    if (voiceMaker == null || note.body.isEmpty) {
+      store.saveNote(note);
+      return;
+    }
+    // 기다리기 전에 글부터 저장 (그 사이 지우면 아래에서 되살리지 않게)
+    store.saveNote(note.withStatus('voice'));
+    var ready = false;
+    try {
+      ready = await voiceReady?.call() ?? true;
+    } catch (_) {}
+    final done = ready ? await _withVoice(note) : note;
+    if (!store.notes.any((n) => n.id == note.id)) return;
+    store.saveNote(done.withStatus(null));
   }
 
   String _chatPromptFor(String message, {String? excludeId}) {

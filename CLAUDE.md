@@ -41,13 +41,13 @@ Supabase 프로젝트 `game-planner`(서울)의 `public.items` 테이블 하나�
 - **Supabase Storage `voice` 버킷** (비공개, 최대 5MB, mp3/wav): AI 답을 '내 목소리'로 만든 음성. 경로 `<user_id>/<노트 id>.mp3`, RLS로 본인 폴더만. 재생은 서명 URL(10분). 대화를 지우면 파일도 지움 (`AiService.deleteChats`·`deleteChatPart`). PC 앱이 켠 지 1분 뒤 어느 노트에도 안 쓰이는 파일을 정리한다 (SQL로는 storage 파일을 못 지움 — Storage API만).
 - **`ai` 행 type `auto`** (id `auto:<날짜>`): 그날 AI 자동 실행을 잡은 PC 표시 (`by`·`claimedAt`, 여러 PC 중 한 대만). 화면엔 안 보임.
 - 대화 한쪽만 지우면 `title`(내 말) 또는 `body`(답)를 빈 글로 저장, 둘 다 비면 행을 지운다.
-- **`ai` 행의 대화 상태** (`AiNote.status`): 폰·웹은 질문을 `{type:'chat', status:'pending'}`로 쓰고, PC 앱이 `'working'`으로 잡은 뒤 답을 채우며 `status`를 지운다 (`null` = 답 완료, `'error'` = 실패). 여러 PC가 켜져 있으면 `by`(기기 id)로 한 대만 답한다. 다른 앱이 `ai` 행을 읽을 때 이 값을 참고.
+- **`ai` 행의 대화 상태** (`AiNote.status`): 폰·웹은 질문을 `{type:'chat', status:'pending'}`로 쓰고, PC 앱이 `'working'`으로 잡은 뒤 답을 채우며 `status`를 지운다 (`null` = 답 완료, `'error'` = 실패). 내 목소리를 쓰면 글 답을 먼저 `'voice'`로 저장하고(글은 보이되 아직 안 읽음), 음성이 붙으면 `null`. 여러 PC가 켜져 있으면 `by`(기기 id)로 한 대만 답한다. 다른 앱이 `ai` 행을 읽을 때 이 값을 참고.
 
 ## AI · 음성 구조
 
 - AI는 **PC 앱에서만** 사용자 PC의 Claude Code CLI로 실행 (`lib/ai/claude_cli*.dart`, API 키 없음). 폰·웹은 위 `pending` 중계로 PC에게 묻는다.
 - 음성: 폰·웹 음성 인식(`speech_to_text`) + 읽기(`flutter_tts`), PC의 '내 목소리'는 `voice_server/`.
-- AI 자동 실행 `lib/ai/autopilot.dart`(PC, 1분마다 확인): 정한 시각 이후 하루 한 번 오늘 계획 → `event`. 대화 말투(비서·친구·연인)는 `AiService.persona`.
+- AI 자동 실행 `lib/ai/autopilot.dart`(PC, 1분마다 확인): 정한 시각 이후 하루 한 번 오늘 계획 → `event`. 대화 말투(비서·친구·연인)는 `AiService.persona`, 대화 모델(빠르게 haiku·보통 sonnet·기본)은 `AiService.chatModel` (CLI `--model`, 대화에만). CLI는 `--strict-mcp-config`로 사용자 MCP 서버를 안 띄운다(속도).
 - **`voice_server/`**: 앱과 따로 도는 PC용 Python 서버 (`127.0.0.1:9800`, GPT-SoVITS api_v2 또는 Qwen3-TTS). CI는 빌드하지 않음. 테스트는 `cd voice_server && python -m unittest test_server.py`. 설치·학습 보조 스크립트(`install_windows.ps1`, `setup_voice.py`, `asr_korean.py`, `fix_korean_mecab.py`)도 여기.
 
 ## 동기화 구조 (`lib/data/`)

@@ -81,6 +81,9 @@ class AiNote {
 
   bool get waiting => status == 'pending' || status == 'working';
 
+  /// 답 글은 나왔고 '내 목소리' 음성을 만드는 중 (다 되면 status 가 지워지고 그때 읽는다)
+  bool get voicing => status == 'voice';
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'type': type,
@@ -113,6 +116,12 @@ class AiNote {
         audio: j['audio'] as String?,
         by: j['by'] as String?,
         claimedAt: j['claimedAt'] == null ? null : DateTime.tryParse(j['claimedAt'] as String),
+      );
+
+  AiNote withStatus(String? s) => AiNote(
+        id: id, type: type, title: title, body: body, createdAt: createdAt, date: date,
+        blocks: blocks, bullets: bullets, actions: actions, status: s,
+        emotion: emotion, audio: audio, by: by, claimedAt: claimedAt,
       );
 
   AiNote withVoice({String? emotion, String? audio}) => AiNote(

@@ -16,6 +16,8 @@ class ClaudeCli {
     '--output-format',
     'json',
     '--no-session-persistence',
+    // 사용자 PC에 설정된 MCP 서버를 띄우지 않는다 (켜질 때마다 몇 초씩 걸림)
+    '--strict-mcp-config',
     '--disallowedTools',
     'Bash',
     'Edit',
@@ -63,8 +65,9 @@ class ClaudeCli {
   }
 
   /// [prompt]를 보내고 답 JSON 객체를 돌려준다.
-  static Future<Map<String, dynamic>> ask(String prompt, {String executable = 'claude'}) async {
-    final (code, out, err) = await _run(executable, _args, stdin: prompt);
+  static Future<Map<String, dynamic>> ask(String prompt, {String executable = 'claude', String? model}) async {
+    final (code, out, err) =
+        await _run(executable, [..._args, if (model != null && model.isNotEmpty) ...['--model', model]], stdin: prompt);
     if (out.trim().isEmpty) {
       throw ClaudeCliException(
           code == 0 ? 'Claude CLI가 아무 답도 하지 않았어요.' : 'Claude CLI 실행 실패: ${err.trim()}');

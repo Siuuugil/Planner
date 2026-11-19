@@ -497,10 +497,22 @@ class _GoalEditorState extends State<_GoalEditor> {
           TextButton(
             onPressed: () {
               widget.game.goals.remove(widget.existing);
+              widget.game.recomputeCrystals(DateTime.now());
               StoreScope.read(context).commit();
               Navigator.pop(context);
             },
             child: const Text('삭제'),
+          ),
+        if (widget.existing?.autoMetric == 'crystal' && widget.existing!.achieved)
+          TextButton(
+            onPressed: () {
+              // 산 금액은 모은 돈에서 빼서 다음 목표로 넘어가지 않게
+              widget.game.buyCrystalGoal(widget.existing!);
+              widget.game.recomputeCrystals(DateTime.now());
+              StoreScope.read(context).commit();
+              Navigator.pop(context);
+            },
+            child: const Text('샀어요 ✓'),
           ),
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
         FilledButton(onPressed: _save, child: const Text('저장')),

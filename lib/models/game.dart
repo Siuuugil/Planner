@@ -385,7 +385,9 @@ class Game {
     Map<String, String>? charWorlds,
     this.eosRate = defaultEosRate,
     Map<String, int>? crystalWeeks,
-  })  : goals = goals ?? [],
+    List<CrystalSpend>? crystalSpent,
+  })  : crystalSpent = crystalSpent ?? [],
+        goals = goals ?? [],
         chores = chores ?? [],
         bosses = bosses ?? [],
         charWorlds = charWorlds ?? {},
@@ -416,6 +418,39 @@ class Game {
 
   /// 예전 버전이 저장한 주간 결정석 수익 (주 시작일 → 메소). 이제는 읽기만 한다.
   final Map<String, int> crystalWeeks;
+
+  /// 메소 목표를 달성해서 산 기록 (모은 돈에서 뺀다)
+  final List<CrystalSpend> crystalSpent;
+
+  /// 결정석 메소 목표 (리스트 순서 = 우선순위, 위가 1순위)
+  List<Goal> get crystalGoals => goals.where((g) => g.autoMetric == 'crystal').toList();
+
+  /// 메소 목표 순서 바꾸기: 결정석 목표들 사이에서 [from]번째를 [to]번째 자리로
+  void moveCrystalGoal(int from, int to) {
+    final list = crystalGoals;
+    if (from == to || from < 0 || from >= list.length) return;
+    final g = list.removeAt(from);
+    list.insert(to.clamp(0, list.length), g);
+    // 다른 목표(레벨·전투력)의 자리는 그대로 두고, 결정석 목표 자리에 새 순서로 채운다
+    var i = 0;
+    for (var k = 0; k < goals.length; k++) {
+      if (goals[k].autoMetric == 'crystal') goals[k] = list[i++];
+    }
+  }
+
+  /// 달성한 메소 목표를 샀다고 기록하고 지운다 (그 금액은 다음 목표로 넘어가지 않음)
+  void buyCrystalGoal(Goal g) {
+    final since = _crystalSince();
+    crystalSpent.add(CrystalSpend(since: since, amount: (g.current - g.start).round()));
+    goals.remove(g);
+  }
+
+  /// 메소 목표 저금이 시작된 주: 가장 먼저 만든 목표의 시작 주
+  String _crystalSince() {
+    final s = [for (final g in crystalGoals) g.autoSince ?? ''];
+    s.sort();
+    return s.isEmpty ? '' : s.first;
+  }
 
   /// 완료 기록(DoneMark)에서 계산한 주간 수익 (월간 보스 제외). 저장하지 않는다.
   final Map<String, int> crystalLive = {};
@@ -608,11 +643,25 @@ class Game {
       ...weekIncome.entries.map((e) => (e.key, e.value)),
       ...crystalMonthly.entries.map((e) => ('${e.key.substring(1)}-01', e.value)),
     ];
-    for (final g in goals) {
-      if (g.autoMetric != 'crystal') continue;
-      final since = g.autoSince ?? '';
-      g.current = all.where((e) => e.$1.compareTo(since) >= 0).fold<int>(0, (a, e) => a + e.$2).toDouble();
+    // 우선순위대로 채운다: 모은 돈(가장 먼저 만든 목표의 시작 주부터, 산 것 빼고)을 1순위부터 다 채우고 남으면 다음으로
+    final since = _crystalSince();
+    var pool = all.where((e) => e.$1.compareTo(since) >= 0).fold<int>(0, (a, e) => a + e.$2).toDouble() -
+        crystalSpent.where((x) => x.since.compareTo(since) >= 0).fold<int>(0, (a, x) => a + x.amount);
+    if (pool < 0) pool = 0;
+    for (final g in crystalGoals) {
+      final need = (g.target - g.start).clamp(0, double.infinity).toDouble();
+      final got = pool < need ? pool : need;
+      g.current = g.start + got;
+      pool -= got;
     }
+  }
+
+  /// 메소 목표마다 앞 순위까지 합쳐 남은 금액 (지금 속도로 몇 주 걸리는지 계산용)
+  Map<String, double> crystalQueueLeft() {
+    var sum = 0.0;
+    return {
+      for (final g in crystalGoals) g.id: sum += (g.target - g.current).clamp(0, double.infinity),
+    };
   }
   /// [now] 기준으로 [period]가 시작된 시각.
   DateTime periodStart(ChorePeriod period, DateTime now) {
@@ -640,6 +689,7 @@ class Game {
         'chores': chores.map((c) => c.toJson()).toList(),
         if (bosses.isNotEmpty) 'bosses': bosses.map((b) => b.toJson()).toList(),
         if (crystalWeeks.isNotEmpty) 'crystalWeeks': crystalWeeks,
+        if (crystalSpent.isNotEmpty) 'crystalSpent': crystalSpent.map((e) => e.toJson()).toList(),
         if (charWorlds.isNotEmpty) 'charWorlds': charWorlds,
         if (eosRate != defaultEosRate) 'eosRate': eosRate,
       };
@@ -664,5 +714,22 @@ class Game {
         eosRate: (j['eosRate'] as num?)?.toDouble() ?? defaultEosRate,
         crystalWeeks: (j['crystalWeeks'] as Map? ?? {})
             .map((k, v) => MapEntry(k as String, (v as num).toInt())),
+        crystalSpent: [
+          for (final e in (j['crystalSpent'] as List? ?? []))
+            if (e is Map) CrystalSpend.fromJson(e.cast<String, dynamic>()),
+        ],
       );
+}
+
+/// 메소 목표를 사서 쓴 돈. [since]는 그때 저금 시작 주 (그 뒤로 모은 돈에서만 뺀다)
+class CrystalSpend {
+  const CrystalSpend({required this.since, required this.amount});
+
+  final String since;
+  final int amount;
+
+  Map<String, dynamic> toJson() => {'since': since, 'amount': amount};
+
+  factory CrystalSpend.fromJson(Map<String, dynamic> j) =>
+      CrystalSpend(since: '${j['since'] ?? ''}', amount: (j['amount'] as num? ?? 0).toInt());
 }

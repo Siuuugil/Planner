@@ -403,7 +403,8 @@ class _GoalPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final goals = g.goals.where((x) => x.autoMetric == 'crystal').toList();
+    final goals = g.crystalGoals;
+    final queue = g.crystalQueueLeft();
     final boss = g.chores.where((c) => c.isBoss);
     // 한 주 속도 = 주간 보스 + 월간 보스를 주 단위로 나눈 값
     final weekly = boss.fold<int>(0, (a, c) => a + (g.isMonthly(c) ? g.bossIncome(c) * 12 ~/ 52 : g.bossIncome(c)));
@@ -412,32 +413,69 @@ class _GoalPanel extends StatelessWidget {
       title: '메소 목표',
       icon: Icons.flag_outlined,
       accent: const Color(0xFF9C6ADE),
-      subtitle: '결정석 수익(주간 + 월간)이 자동으로 쌓여요',
+      subtitle: goals.length > 1 ? '위에서부터 순서대로 모아요 · ≡ 를 끌어서 순서 바꾸기' : '결정석 수익(주간 + 월간)이 자동으로 쌓여요',
       trailing: AddButton(tooltip: '메소 목표 추가', onPressed: () => _add(context)),
       child: goals.isEmpty
           ? const EmptyHint('예: 아케인 무기 사기 위해 50억 모으기 → 결정석 수익으로 자동 진행')
-          : Column(
-              children: withDividers(goals.map((goal) {
-                final left = goal.target - goal.current;
-                final eta = left <= 0
-                    ? '🏆 달성!'
-                    : weekly <= 0
-                        ? '보스를 등록하면 예상 기간이 나와요'
-                        : '지금 속도면 약 ${(left / weekly).ceil()}주 뒤 달성 '
-                            '(${DateFormat('M/d').format(now.add(Duration(days: 7 * (left / weekly).ceil())))})';
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    GoalTile(game: g, goal: goal),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                      child: Text(eta, style: const TextStyle(fontSize: 13)),
-                    ),
-                  ],
-                );
-              })),
+          : ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              onReorderItem: (from, to) {
+                g.moveCrystalGoal(from, to);
+                g.recomputeCrystals(now);
+                StoreScope.read(context).commit();
+              },
+              children: [
+                for (final (i, goal) in goals.indexed)
+                  Column(
+                    key: ValueKey(goal.id),
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (i > 0) Divider(height: 1, color: Ui.line),
+                      Row(
+                        children: [
+                          ReorderableDragStartListener(
+                            index: i,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 12, 0, 12),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.drag_indicator, color: Ui.subtext),
+                                  Text('${i + 1}순위', style: TextStyle(color: Ui.subtext, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                GoalTile(game: g, goal: goal),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                  child: Text(_eta(goal, queue[goal.id] ?? 0, weekly, i),
+                                      style: const TextStyle(fontSize: 13)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+              ],
             ),
     );
+  }
+
+  /// 예상 달성: 앞 순위 목표까지 다 모아야 하므로 앞에서 남은 금액을 합쳐서 계산
+  String _eta(Goal goal, double queueLeft, int weekly, int index) {
+    if (goal.target - goal.current <= 0) return '🏆 달성! (샀으면 눌러서 "샀어요")';
+    if (weekly <= 0) return '보스를 등록하면 예상 기간이 나와요';
+    final weeks = (queueLeft / weekly).ceil();
+    final when = DateFormat('M/d').format(now.add(Duration(days: 7 * weeks)));
+    return '지금 속도면 약 $weeks주 뒤 달성 ($when)${index > 0 ? ' · 앞 순위 목표 포함' : ''}';
   }
 
   Future<void> _add(BuildContext context) async {
@@ -465,7 +503,7 @@ class _GoalPanel extends StatelessWidget {
                 decoration: const InputDecoration(labelText: '모을 금액 (억 메소)', suffixText: '억'),
               ),
               const SizedBox(height: 6),
-              Text('이번 주부터 들어오는 결정석 수익이 자동으로 쌓여요',
+              Text('결정석 수익이 자동으로 쌓여요. 맨 아래(마지막 순위)에 추가되고, 끌어서 순서를 바꿀 수 있어요',
                   style: TextStyle(color: Ui.subtext, fontSize: 13)),
             ],
           ),

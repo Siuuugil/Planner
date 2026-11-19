@@ -34,6 +34,7 @@ Supabase 프로젝트 `game-planner`(서울)의 `public.items` 테이블 하나�
   - 일정: 한 행이 반복 전체. `start`는 첫 회차, 날짜마다 펼쳐서 보여 준다. 회차별 완료 `doneDates`, 이날만 빼기 `skipDates` (`['YYYY-MM-DD']`). **반복을 모르는 앱은 첫 날짜에만 보인다** (PC 마을 `agenda`가 펼치려면 `occursOn` 규칙을 따라야 함).
   - 할 일: 끝내면 `due`가 다음 회차로 바뀌고 `done`은 false 그대로.
 - `steps` (할 일): `[{title, done}]` 하위 단계.
+- 메이플 게임 행 `goals`의 결정석 목표(`autoMetric: 'crystal'`)는 **리스트 순서가 우선순위**(위가 1순위). 모은 돈(가장 먼저 만든 목표의 `autoSince`부터)을 1순위부터 채운다 (`Game.recomputeCrystals`). 산 목표는 `crystalSpent: [{since, amount}]`에 남기고 그만큼 뺀다.
 - 메이플 게임 행의 자동 숙제 id `sym-<캐릭터 id>`(심볼 일일), 썬데이 메이플 일정 id `nx-evt-<공지 번호>`(그날 종일 게임 일정) — id가 정해져 있어 여러 기기에서 겹치지 않음. 다른 넥슨 이벤트는 일정으로 저장하지 않고 기기마다 받아서 '메이플 이벤트' 칸·캘린더(끝나는 날)에만 보여 준다 (`MapleService.others`, 캐시 `nx_events_cache`).
 
 ### 그 밖의 공유 자원

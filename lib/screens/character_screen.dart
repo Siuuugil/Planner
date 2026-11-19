@@ -72,7 +72,6 @@ class CharacterScreen extends StatelessWidget {
           _InfoPanel(c, busy: busy),
           _GrowthPanel(c, maple: maple, run: run),
           _GoalsPanel(c),
-          _StatPanel(c, maple: maple, run: run),
           _EquipPanel(c, maple: maple, run: run),
         ],
       ),
@@ -342,88 +341,7 @@ class _GoalsPanel extends StatelessWidget {
   }
 }
 
-class _StatPanel extends StatefulWidget {
-  const _StatPanel(this.c, {required this.maple, required this.run});
-
-  final MapleCharacter c;
-  final MapleService maple;
-  final Future<void> Function(Future<void> Function()) run;
-
-  @override
-  State<_StatPanel> createState() => _StatPanelState();
-}
-
-class _StatPanelState extends State<_StatPanel> {
-  bool _all = false;
-
-  static const _main = [
-    '전투력', '최대 HP', 'STR', 'DEX', 'INT', 'LUK', '공격력', '마력',
-    '보스 몬스터 데미지', '방어율 무시', '데미지', '최종 데미지', '크리티컬 확률', '크리티컬 데미지',
-    '스타포스', '아케인포스', '어센틱포스', '재사용 대기시간 감소 (%)', '아이템 드롭률', '메소 획득량',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final stat = widget.maple.statCache[widget.c.id];
-    final list = [
-      for (final s in (stat?['final_stat'] as List? ?? []))
-        (s['stat_name'] as String, '${s['stat_value']}'),
-    ];
-    final shown = _all ? list : list.where((e) => _main.contains(e.$1)).toList();
-    return AppSection(
-      title: '스탯',
-      accent: const Color(0xFFE8833A),
-      trailing: stat == null
-          ? null
-          : IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: _all ? '주요 스탯만' : '전체 보기',
-              icon: Icon(_all ? Icons.unfold_less : Icons.unfold_more, color: Ui.subtext),
-              onPressed: () => setState(() => _all = !_all),
-            ),
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-      child: stat == null
-          ? Center(
-              child: OutlinedButton(
-                onPressed: () => widget.run(() => widget.maple.stat(widget.c)),
-                child: const Text('스탯 불러오기'),
-              ),
-            )
-          : Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                for (final (k, v) in shown)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Ui.field,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Ui.line, width: 1.5),
-                    ),
-                    child: Text.rich(TextSpan(children: [
-                      TextSpan(text: '$k ', style: TextStyle(color: Ui.subtext, fontSize: 13)),
-                      TextSpan(
-                        text: k == '전투력' ? koreanNumber(num.tryParse(v) ?? 0) : _fmt(v),
-                        style: const TextStyle(fontSize: 15),
-                      ),
-                    ])),
-                  ),
-              ],
-            ),
-    );
-  }
-
-  static String _fmt(String v) {
-    final n = num.tryParse(v);
-    if (n == null) return v;
-    return n is int || n == n.roundToDouble()
-        ? NumberFormat.decimalPattern('ko_KR').format(n)
-        : v;
-  }
-}
-
-class _EquipPanel extends StatelessWidget {
+class _EquipPanel extends StatefulWidget {
   const _EquipPanel(this.c, {required this.maple, required this.run});
 
   final MapleCharacter c;
@@ -431,9 +349,21 @@ class _EquipPanel extends StatelessWidget {
   final Future<void> Function(Future<void> Function()) run;
 
   @override
+  State<_EquipPanel> createState() => _EquipPanelState();
+}
+
+class _EquipPanelState extends State<_EquipPanel> {
+  int? _preset;
+
+  @override
   Widget build(BuildContext context) {
+    final c = widget.c, maple = widget.maple;
     final eq = maple.equipmentCache[c.id];
-    final items = (eq?['item_equipment'] as List? ?? []).cast<Map<String, dynamic>>();
+    List<Map<String, dynamic>> list(String key) => (eq?[key] as List? ?? []).cast<Map<String, dynamic>>();
+    final presets = [for (var n = 1; n <= 3; n++) if (list('item_equipment_preset_$n').isNotEmpty) n];
+    final current = (eq?['preset_no'] as num?)?.toInt();
+    final shown = _preset ?? current;
+    final items = shown != null && presets.contains(shown) ? list('item_equipment_preset_$shown') : list('item_equipment');
     return AppSection(
       title: '장비',
       accent: const Color(0xFF6D4C41),
@@ -443,37 +373,189 @@ class _EquipPanel extends StatelessWidget {
               visualDensity: VisualDensity.compact,
               tooltip: '다시 불러오기',
               icon: Icon(Icons.refresh, color: Ui.subtext),
-              onPressed: () => run(() => maple.equipment(c, force: true)),
+              onPressed: () => widget.run(() => maple.equipment(c, force: true)),
             ),
       child: eq == null
           ? Padding(
               padding: const EdgeInsets.all(10),
               child: Center(
                 child: OutlinedButton(
-                  onPressed: () => run(() => maple.equipment(c)),
+                  onPressed: () => widget.run(() => maple.equipment(c)),
                   child: const Text('장비 불러오기'),
                 ),
               ),
             )
           : items.isEmpty
               ? const EmptyHint('장착한 장비가 없어요')
-              : Column(children: withDividers(items.map((i) => _ItemTile(i)))),
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  child: Column(
+                    children: [
+                      EquipGrid(items: items, characterImage: c.image),
+                      if (presets.length > 1) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('프리셋', style: TextStyle(color: Ui.subtext, fontSize: 13)),
+                            const SizedBox(width: 8),
+                            for (final n in presets)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 3),
+                                child: ChoiceChip(
+                                  label: Text(n == current ? '$n ✓' : '$n'),
+                                  selected: n == shown,
+                                  onSelected: (_) => setState(() => _preset = n),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
     );
   }
 }
 
-class _ItemTile extends StatelessWidget {
-  const _ItemTile(this.i);
+/// 메이플 공식 장비창 배치 (가운데 캐릭터, 왼쪽 반지·펜던트, 오른쪽 방어구, 아래 무기·장신구)
+class EquipGrid extends StatelessWidget {
+  const EquipGrid({super.key, required this.items, this.characterImage = ''});
+
+  final List<Map<String, dynamic>> items;
+  final String characterImage;
+
+  static const _p = '';
+
+  /// 칸 배치 (넥슨 API item_equipment_slot 이름). '' = 캐릭터 그림, null = 빈 칸
+  static const layout = <List<String?>>[
+    ['반지4', '포켓 아이템', _p, _p, _p, '모자', '망토'],
+    ['반지3', '펜던트2', _p, _p, _p, '상의', '장갑'],
+    ['반지2', '펜던트', _p, _p, _p, '하의', '신발'],
+    ['반지1', '벨트', _p, _p, _p, '어깨장식', null],
+    ['얼굴장식', '눈장식', '무기', '보조무기', '엠블렘', '귀고리', '기계 심장'],
+    ['훈장', '뱃지'],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bySlot = {for (final i in items) '${i['item_equipment_slot'] ?? ''}': i};
+    final known = {for (final r in layout) ...r.whereType<String>()};
+    final extra = [for (final e in bySlot.entries) if (!known.contains(e.key)) e.key];
+    final rows = [
+      ...layout,
+      // 배치에 없는 칸(새 슬롯 등)은 맨 아래에 이어서
+      for (var k = 0; k < extra.length; k += 7) extra.sublist(k, (k + 7).clamp(0, extra.length)),
+    ];
+    return LayoutBuilder(builder: (context, box) {
+      const gap = 4.0;
+      final cell = ((box.maxWidth - gap * 6) / 7).clamp(30.0, 50.0);
+      final w = cell * 7 + gap * 6;
+      double at(int n) => n * (cell + gap);
+      return Center(
+        child: SizedBox(
+          width: w,
+          height: at(rows.length) - gap,
+          child: Stack(
+            children: [
+              Positioned(
+                left: at(2),
+                top: 0,
+                width: cell * 3 + gap * 2,
+                height: cell * 4 + gap * 3,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Ui.soft,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Ui.line, width: 1.5),
+                  ),
+                  child: Center(child: NexonImage(characterImage, size: cell * 3)),
+                ),
+              ),
+              for (final (r, row) in rows.indexed)
+                for (final (col, slot) in row.indexed)
+                  if (slot != null && slot != _p)
+                    Positioned(
+                      left: at(col),
+                      top: at(r),
+                      width: cell,
+                      height: cell,
+                      child: _EquipCell(slot: slot, item: bySlot[slot]),
+                    ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+Color _gradeColor(String? g) => switch (g) {
+      '레어' => const Color(0xFF3FA9F5),
+      '에픽' => const Color(0xFF9C5FD6),
+      '유니크' => const Color(0xFFF2B01E),
+      '레전드리' => const Color(0xFF6BBF3B),
+      _ => Ui.line,
+    };
+
+class _EquipCell extends StatelessWidget {
+  const _EquipCell({required this.slot, this.item});
+
+  final String slot;
+  final Map<String, dynamic>? item;
+
+  @override
+  Widget build(BuildContext context) {
+    final i = item;
+    final star = int.tryParse('${i?['starforce'] ?? 0}') ?? 0;
+    final box = Container(
+      decoration: BoxDecoration(
+        color: Ui.field,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: i == null ? Ui.line : _gradeColor(i['potential_option_grade'] as String?), width: 2),
+      ),
+      child: i == null
+          ? Center(
+              child: Text(slot.replaceAll(' 아이템', ''),
+                  textAlign: TextAlign.center, style: TextStyle(color: Ui.subtext, fontSize: 9)),
+            )
+          : Stack(
+              children: [
+                Center(child: NexonImage('${i['item_icon'] ?? ''}', size: 32)),
+                if (star > 0)
+                  Positioned(
+                    right: 1,
+                    bottom: 0,
+                    child: Text('★$star',
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: star >= 22 ? const Color(0xFFD84315) : Ui.subtext)),
+                  ),
+              ],
+            ),
+    );
+    if (i == null) return Tooltip(message: slot, child: box);
+    return Tooltip(
+      message: '${i['item_name'] ?? ''}',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () => showModalBottomSheet(
+          context: context,
+          showDragHandle: true,
+          builder: (_) => SafeArea(child: SingleChildScrollView(child: _ItemDetail(i))),
+        ),
+        child: box,
+      ),
+    );
+  }
+}
+
+/// 장비 하나 자세히 (잠재·에디셔널)
+class _ItemDetail extends StatelessWidget {
+  const _ItemDetail(this.i);
 
   final Map<String, dynamic> i;
-
-  static Color gradeColor(String? g) => switch (g) {
-        '레어' => const Color(0xFF3FA9F5),
-        '에픽' => const Color(0xFF9C5FD6),
-        '유니크' => const Color(0xFFF2B01E),
-        '레전드리' => const Color(0xFF6BBF3B),
-        _ => Ui.line,
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -486,42 +568,50 @@ class _ItemTile extends StatelessWidget {
         ];
     final pot = lines('potential_option');
     final add = lines('additional_potential_option');
-
-    return ExpansionTile(
-      tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-      leading: Container(
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: Ui.field,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: gradeColor(grade), width: 2),
-        ),
-        child: NexonImage('${i['item_icon'] ?? ''}', size: 36),
-      ),
-      title: Text('${i['item_name'] ?? ''}', style: const TextStyle(fontSize: 15)),
-      subtitle: Text(
-        [
-          '${i['item_equipment_slot'] ?? ''}',
-          if (star > 0) '★$star',
-          ?grade,
-        ].join(' · '),
-        style: TextStyle(color: star >= 22 ? const Color(0xFFD84315) : Ui.subtext, fontSize: 12),
-      ),
-      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      expandedCrossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (pot.isNotEmpty) ...[
-          Text('잠재능력 · ${grade ?? ''}', style: TextStyle(color: gradeColor(grade), fontSize: 13)),
-          for (final l in pot) Text('  $l', style: const TextStyle(fontSize: 13)),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Ui.field,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _gradeColor(grade), width: 2),
+                ),
+                child: NexonImage('${i['item_icon'] ?? ''}', size: 44),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${i['item_name'] ?? ''}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    Text(
+                      ['${i['item_equipment_slot'] ?? ''}', if (star > 0) '★$star'].join(' · '),
+                      style: TextStyle(color: star >= 22 ? const Color(0xFFD84315) : Ui.subtext, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (pot.isNotEmpty) ...[
+            Text('잠재능력 · ${grade ?? ''}', style: TextStyle(color: _gradeColor(grade), fontSize: 14)),
+            for (final l in pot) Text('  $l', style: const TextStyle(fontSize: 14)),
+          ],
+          if (add.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('에디셔널 · ${addGrade ?? ''}', style: TextStyle(color: _gradeColor(addGrade), fontSize: 14)),
+            for (final l in add) Text('  $l', style: const TextStyle(fontSize: 14)),
+          ],
+          if (pot.isEmpty && add.isEmpty) Text('잠재능력 없음', style: TextStyle(color: Ui.subtext, fontSize: 14)),
         ],
-        if (add.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text('에디셔널 · ${addGrade ?? ''}', style: TextStyle(color: gradeColor(addGrade), fontSize: 13)),
-          for (final l in add) Text('  $l', style: const TextStyle(fontSize: 13)),
-        ],
-        if (pot.isEmpty && add.isEmpty)
-          Text('잠재능력 없음', style: TextStyle(color: Ui.subtext, fontSize: 13)),
-      ],
+      ),
     );
   }
 }
@@ -558,7 +648,7 @@ class CharacterGoalsSection extends StatelessWidget {
   Widget build(BuildContext context) => _GoalsPanel(c);
 }
 
-/// 메이플 탭에서 쓰는 스탯 + 장비 섹션
+/// 메이플 탭에서 쓰는 장비 섹션
 class CharacterGearSection extends StatelessWidget {
   const CharacterGearSection(this.c, {super.key});
 
@@ -571,7 +661,6 @@ class CharacterGearSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _StatPanel(c, maple: maple, run: run),
         _EquipPanel(c, maple: maple, run: run),
       ],
     );

@@ -296,4 +296,42 @@ void main() {
       expect(r.body, contains('6000만'));
     });
   });
+
+  group('메소 목표 우선순위', () {
+    Game withGoals() {
+      final g = Game(id: 'g', name: '메이플스토리', crystalWeeks: {'2026-11-05': 3e9.toInt()});
+      g.goals
+        ..add(Goal(id: 'lv', title: '레벨', target: 290))
+        ..add(Goal(id: 'mit', title: '미트라', target: 14e9, autoMetric: 'crystal', autoSince: '2026-11-05'))
+        ..add(Goal(id: 'eter', title: '에테르넬 견장', target: 7e9, autoMetric: 'crystal', autoSince: '2026-11-05'));
+      return g;
+    }
+
+    test('모은 돈은 1순위부터 채우고, 남은 금액은 앞 순위까지 합쳐 계산', () {
+      final g = withGoals()..recomputeCrystals(DateTime(2026, 11, 10));
+      expect(g.crystalGoals.map((x) => x.current), [3e9, 0]);
+      expect(g.crystalQueueLeft(), {'mit': 11e9, 'eter': 18e9});
+    });
+
+    test('견장을 위로 올리면 견장이 먼저 채워지고 미트라가 밀린다, 다른 목표 자리는 그대로', () {
+      final g = withGoals()
+        ..moveCrystalGoal(1, 0)
+        ..recomputeCrystals(DateTime(2026, 11, 10));
+      expect(g.goals.map((x) => x.id), ['lv', 'eter', 'mit']);
+      expect(g.crystalGoals.map((x) => x.current), [3e9, 0]);
+      expect(g.crystalQueueLeft(), {'eter': 4e9, 'mit': 18e9});
+    });
+
+    test('달성한 목표를 "샀어요"하면 그 금액은 다음 목표로 안 넘어간다 (저장도 됨)', () {
+      final g = Game(id: 'g', name: '메이플스토리', crystalWeeks: {'2026-11-05': 10e9.toInt()});
+      g.goals
+        ..add(Goal(id: 'eter', title: '견장', target: 7e9, autoMetric: 'crystal', autoSince: '2026-11-05'))
+        ..add(Goal(id: 'mit', title: '미트라', target: 14e9, autoMetric: 'crystal', autoSince: '2026-11-05'));
+      g.recomputeCrystals(DateTime(2026, 11, 10));
+      expect(g.crystalGoals.map((x) => x.current), [7e9, 3e9]);
+      g.buyCrystalGoal(g.crystalGoals.first);
+      final back = Game.fromJson(g.toJson())..recomputeCrystals(DateTime(2026, 11, 10));
+      expect(back.crystalGoals.single.current, 3e9);
+    });
+  });
 }
